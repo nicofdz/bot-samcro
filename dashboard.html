@@ -1,0 +1,588 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SAMCRO MC — Dashboard de Nómina</title>
+<style>
+  .viz-root {
+    color-scheme: light;
+    --surface-1:      #fcfcfb;
+    --page:           #f9f9f7;
+    --text-primary:   #0b0b0b;
+    --text-secondary: #52514e;
+    --text-muted:     #898781;
+    --grid:           #e1e0d9;
+    --baseline:       #c3c2b7;
+    --border:         rgba(11,11,11,0.10);
+    --good:           #0ca30c;
+    --series-mecanica:#2a78d6;
+    --series-bar:     #eb6834;
+    --series-tatuajes:#1baf7a;
+    --series-show:    #eda100;
+  }
+  :root[data-theme="dark"] .viz-root {
+    color-scheme: dark;
+    --surface-1:      #1a1a19;
+    --page:           #0d0d0d;
+    --text-primary:   #ffffff;
+    --text-secondary: #c3c2b7;
+    --text-muted:     #898781;
+    --grid:           #2c2c2a;
+    --baseline:       #383835;
+    --border:         rgba(255,255,255,0.10);
+    --good:           #0ca30c;
+    --series-mecanica:#3987e5;
+    --series-bar:     #d95926;
+    --series-tatuajes:#199e70;
+    --series-show:    #c98500;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+    background: var(--page);
+    color: var(--text-primary);
+  }
+  .wrap { max-width: 1080px; margin: 0 auto; padding: 28px 20px 60px; }
+  header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 22px; flex-wrap: wrap; gap: 12px; }
+  h1 { font-size: 22px; margin: 0; letter-spacing: 0.2px; }
+  h1 span { color: var(--text-secondary); font-weight: 400; font-size: 14px; display: block; margin-top: 2px; }
+  .theme-toggle {
+    border: 1px solid var(--border); background: var(--surface-1); color: var(--text-secondary);
+    border-radius: 8px; padding: 7px 12px; font-size: 13px; cursor: pointer;
+  }
+  .card {
+    background: var(--surface-1); border: 1px solid var(--border); border-radius: 12px;
+    padding: 18px 20px; margin-bottom: 16px;
+  }
+  .upload {
+    border: 1.5px dashed var(--baseline); border-radius: 12px; padding: 26px 20px;
+    text-align: center; color: var(--text-secondary); margin-bottom: 20px; background: var(--surface-1);
+    cursor: pointer; transition: border-color .15s ease;
+  }
+  .upload.drag { border-color: var(--series-mecanica); color: var(--text-primary); }
+  .upload strong { color: var(--text-primary); }
+  .upload input { display: none; }
+  .upload small { display: block; margin-top: 6px; color: var(--text-muted); font-size: 12px; }
+  .kpis { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px,1fr)); gap: 14px; margin-bottom: 20px; }
+  .kpi { background: var(--surface-1); border: 1px solid var(--border); border-radius: 12px; padding: 16px 18px; }
+  .kpi .label { font-size: 12px; color: var(--text-secondary); margin-bottom: 6px; }
+  .kpi .value { font-size: 24px; font-weight: 600; font-variant-numeric: tabular-nums; }
+  .kpi .sub { font-size: 12px; color: var(--text-muted); margin-top: 4px; }
+  .chart-card h2, .section-card h2 { font-size: 15px; margin: 0 0 14px; font-weight: 600; }
+  .bars { display: flex; flex-direction: column; gap: 12px; }
+  .bar-row { display: grid; grid-template-columns: 140px 1fr 90px; align-items: center; gap: 10px; }
+  .bar-row .name { font-size: 13px; color: var(--text-secondary); }
+  .bar-track { background: var(--grid); border-radius: 4px; height: 18px; position: relative; overflow: hidden; }
+  .bar-fill { height: 100%; border-radius: 4px; min-width: 4px; }
+  .bar-row .amount { font-size: 13px; text-align: right; font-variant-numeric: tabular-nums; color: var(--text-primary); }
+  .legend { display: flex; gap: 16px; flex-wrap: wrap; margin-top: 14px; font-size: 12px; color: var(--text-secondary); }
+  .legend .dot { width: 10px; height: 10px; border-radius: 3px; display: inline-block; margin-right: 6px; vertical-align: -1px; }
+  .section-card { padding: 0; overflow: hidden; }
+  .section-head { display: flex; align-items: center; justify-content: space-between; padding: 16px 20px; border-bottom: 1px solid var(--border); }
+  .section-head .tag { display: flex; align-items: center; gap: 8px; font-weight: 600; font-size: 15px; }
+  .section-head .dot { width: 11px; height: 11px; border-radius: 3px; }
+  .section-head .total { font-variant-numeric: tabular-nums; font-weight: 600; font-size: 15px; }
+  table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  thead th {
+    text-align: left; font-weight: 500; color: var(--text-muted); font-size: 11px; text-transform: uppercase;
+    letter-spacing: 0.04em; padding: 10px 20px; border-bottom: 1px solid var(--grid);
+  }
+  thead th.num, td.num { text-align: right; }
+  tbody td { padding: 10px 20px; border-bottom: 1px solid var(--grid); font-variant-numeric: tabular-nums; }
+  tbody tr:last-child td { border-bottom: none; }
+  tbody td.name { font-variant-numeric: normal; font-weight: 500; }
+  tbody td.total { font-weight: 600; color: var(--text-primary); }
+  .empty-section { padding: 22px 20px; color: var(--text-muted); font-size: 13px; }
+  .actions { display: flex; gap: 10px; margin-bottom: 18px; }
+  .btn { border: 1px solid var(--border); background: var(--surface-1); color: var(--text-secondary); border-radius: 8px; padding: 8px 14px; font-size: 13px; cursor: pointer; }
+  .btn:hover { color: var(--text-primary); }
+  footer { color: var(--text-muted); font-size: 12px; margin-top: 30px; line-height: 1.6; }
+  .hidden { display: none !important; }
+
+  /* Lobby Menu Styles */
+  .lobby-container {
+    max-width: 900px;
+    margin: 40px auto;
+    padding: 0 10px;
+    text-align: center;
+  }
+  .lobby-container h2 {
+    font-size: 14px;
+    text-transform: uppercase;
+    letter-spacing: 3px;
+    color: var(--text-secondary);
+    margin-bottom: 8px;
+  }
+  .lobby-container h1 {
+    font-size: 34px;
+    font-weight: 800;
+    margin: 0 0 12px;
+    letter-spacing: -0.5px;
+  }
+  .lobby-container p {
+    color: var(--text-muted);
+    font-size: 14px;
+    margin-bottom: 35px;
+  }
+  .lobby-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    gap: 18px;
+  }
+  .lobby-card {
+    background: var(--surface-1);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    padding: 24px 16px;
+    cursor: pointer;
+    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+  }
+  .lobby-card:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 8px 16px rgba(0,0,0,0.06);
+  }
+  .lobby-card:nth-child(1):hover { border-color: var(--series-mecanica); }
+  .lobby-card:nth-child(2):hover { border-color: var(--series-bar); }
+  .lobby-card:nth-child(3):hover { border-color: var(--series-tatuajes); }
+  .lobby-card:nth-child(4):hover { border-color: var(--series-show); }
+  .lobby-card.club-card:hover { border-color: var(--baseline); }
+
+  .lobby-icon {
+    font-size: 36px;
+    margin-bottom: 12px;
+    transition: transform 0.2s ease;
+  }
+  .lobby-card:hover .lobby-icon {
+    transform: scale(1.1);
+  }
+  .lobby-card h3 {
+    margin: 0 0 6px;
+    font-size: 16px;
+    font-weight: 600;
+  }
+  .lobby-desc {
+    font-size: 12px;
+    color: var(--text-muted);
+    line-height: 1.4;
+  }
+  .header-left {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+  .back-btn {
+    border: 1px solid var(--border);
+    background: var(--surface-1);
+    color: var(--text-secondary);
+    border-radius: 8px;
+    padding: 6px 12px;
+    font-size: 13px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .back-btn:hover {
+    color: var(--text-primary);
+    border-color: var(--baseline);
+  }
+</style>
+</head>
+<body>
+<div class="viz-root">
+  <div class="wrap">
+
+    <!-- LOBBY VIEW (MENU DE ENTRADA) -->
+    <div id="lobbyView" class="lobby-container">
+      <h2>SAMCRO MC</h2>
+      <h1>Portal de Nóminas</h1>
+      <p>Selecciona una sección para ver los detalles de pago y estadísticas</p>
+      
+      <div class="lobby-grid">
+        <div class="lobby-card" onclick="seleccionarSeccion('mecanica')">
+          <div class="lobby-icon">🔧</div>
+          <h3>Mecánica</h3>
+          <span class="lobby-desc">Nómina de mecánicos y comisiones de reparaciones</span>
+        </div>
+        <div class="lobby-card" onclick="seleccionarSeccion('bar')">
+          <div class="lobby-icon">🍺</div>
+          <h3>Bar / Comida</h3>
+          <span class="lobby-desc">Nómina de bartenders y comisiones de venta</span>
+        </div>
+        <div class="lobby-card" onclick="seleccionarSeccion('tatuajes')">
+          <div class="lobby-icon">🖋️</div>
+          <h3>Tatuajes</h3>
+          <span class="lobby-desc">Nómina de tatuadores y comisiones de diseños</span>
+        </div>
+        <div class="lobby-card" onclick="seleccionarSeccion('show')">
+          <div class="lobby-icon">💃</div>
+          <h3>Bailarinas / Show</h3>
+          <span class="lobby-desc">Nómina de bailarinas y comisiones de shows</span>
+        </div>
+        <div class="lobby-card club-card" onclick="seleccionarSeccion('consolidado')">
+          <div class="lobby-icon">🏍️</div>
+          <h3>Club Completo</h3>
+          <span class="lobby-desc">Resumen general consolidado de todas las áreas</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- DASHBOARD VIEW (DETALLE DE LA SECCIÓN SELECCIONADA) -->
+    <div id="dashboardWrapper" class="hidden">
+      <header>
+        <div class="header-left">
+          <button class="back-btn" onclick="volverAlMenu()" type="button">⬅️ Volver</button>
+          <h1 id="dashboardTitle">SAMCRO MC — Nómina semanal</h1>
+        </div>
+        <button class="theme-toggle" id="themeToggle" type="button">🌙 Modo oscuro</button>
+      </header>
+
+      <div class="upload" id="uploadZone">
+        <div><strong id="uploadLabel">Arrastra aquí los CSV</strong> exportados con <code>/exportar-nomina</code> del bot, o haz clic para elegirlos.</div>
+        <small>Puedes subir uno o varios (uno por sección). El nombre del archivo debe empezar con "nomina_&lt;seccion&gt;_..." tal como lo genera el bot.</small>
+        <input type="file" id="fileInput" accept=".csv" multiple>
+      </div>
+
+      <div class="actions">
+        <button class="btn" id="demoBtn" type="button">Ver con datos de ejemplo</button>
+        <button class="btn hidden" id="clearBtn" type="button">Limpiar datos</button>
+      </div>
+
+      <div id="dashboard" class="hidden">
+        <div class="card filter-card" style="margin-bottom: 16px;">
+          <input type="text" id="searchInput" placeholder="🔍 Buscar trabajador por nombre..." style="width: 100%; padding: 12px 14px; border: 1px solid var(--border); background: var(--surface-1); color: var(--text-primary); border-radius: 8px; font-size: 13px; outline: none;">
+        </div>
+
+        <div class="kpis" id="kpis"></div>
+
+        <div class="card chart-card" id="chartCard">
+          <h2>Total a pagar por sección esta semana</h2>
+          <div class="bars" id="sectionBars"></div>
+          <div class="legend" id="legend"></div>
+        </div>
+
+        <div id="sectionTables"></div>
+      </div>
+
+      <footer id="footerNote">
+        Sin datos cargados todavía. Esta página no envía nada a ningún servidor — todo se procesa en tu navegador y se pierde al recargar, así que exporta de nuevo cada semana desde Discord con <code>/exportar-nomina</code>.
+      </footer>
+    </div>
+
+  </div>
+</div>
+
+<script>
+const SECCIONES = {
+  mecanica:  { label: "🔧 Mecánica",         varColor: "--series-mecanica" },
+  bar:       { label: "🍺 Bar / Comida",     varColor: "--series-bar" },
+  tatuajes:  { label: "🖋️ Tatuajes",         varColor: "--series-tatuajes" },
+  show:      { label: "💃 Bailarinas / Show", varColor: "--series-show" },
+};
+const ORDEN_SECCIONES = ["mecanica", "bar", "tatuajes", "show"];
+
+let dataPorSeccion = {}; // key -> [{nombre, horas, pagoHoras, nServicios, comisiones, total}]
+let seccionSeleccionada = null; // 'mecanica', 'bar', 'tatuajes', 'show', 'consolidado'
+
+function seleccionarSeccion(seccionKey) {
+  seccionSeleccionada = seccionKey;
+  document.getElementById("lobbyView").classList.add("hidden");
+  document.getElementById("dashboardWrapper").classList.remove("hidden");
+  
+  // Actualizar título dinámico
+  const titulo = seccionKey === "consolidado" 
+    ? "SAMCRO MC — Nómina Consolidada" 
+    : `SAMCRO MC — Nómina de ${SECCIONES[seccionKey].label}`;
+  document.getElementById("dashboardTitle").innerHTML = titulo;
+  
+  // Ocultar/mostrar gráficos si es sección individual
+  const chartCard = document.getElementById("chartCard");
+  if (seccionKey === "consolidado") {
+    chartCard.classList.remove("hidden");
+  } else {
+    chartCard.classList.add("hidden");
+  }
+
+  render();
+}
+
+function volverAlMenu() {
+  seccionSeleccionada = null;
+  document.getElementById("dashboardWrapper").classList.add("hidden");
+  document.getElementById("lobbyView").classList.remove("hidden");
+}
+
+// ---------- Utilidades ----------
+function fmtCLP(n) {
+  return "$" + Math.round(n).toLocaleString("es-CL");
+}
+
+function colorVar(key) {
+  return getComputedStyle(document.querySelector(".viz-root")).getPropertyValue(SECCIONES[key].varColor).trim();
+}
+
+function detectarSeccion(filename) {
+  const f = filename.toLowerCase();
+  for (const key of ORDEN_SECCIONES) {
+    if (f.includes("nomina_" + key) || f.includes(key)) return key;
+  }
+  return null;
+}
+
+// Parser CSV simple (soporta campos entre comillas con comas internas)
+function parseCSV(text) {
+  const lines = text.replace(/\r/g, "").split("\n").filter(l => l.trim().length > 0);
+  const rows = lines.map(line => {
+    const out = [];
+    let cur = "", inQuotes = false;
+    for (let i = 0; i < line.length; i++) {
+      const c = line[i];
+      if (inQuotes) {
+        if (c === '"' && line[i + 1] === '"') { cur += '"'; i++; }
+        else if (c === '"') { inQuotes = false; }
+        else { cur += c; }
+      } else {
+        if (c === '"') inQuotes = true;
+        else if (c === ",") { out.push(cur); cur = ""; }
+        else cur += c;
+      }
+    }
+    out.push(cur);
+    return out;
+  });
+  return rows;
+}
+
+function cargarCSV(seccionKey, texto) {
+  const rows = parseCSV(texto);
+  const [, ...body] = rows; // primera fila es encabezado: Nombre,Horas,Pago horas,N servicios,Comisiones,TOTAL
+  const registros = body.map(r => ({
+    nombre: r[0],
+    horas: parseFloat(r[1]) || 0,
+    pagoHoras: parseFloat(r[2]) || 0,
+    nServicios: parseInt(r[3]) || 0,
+    comisiones: parseFloat(r[4]) || 0,
+    total: parseFloat(r[5]) || 0,
+  })).filter(r => r.nombre);
+  dataPorSeccion[seccionKey] = registros;
+}
+
+function cargarDemo() {
+  dataPorSeccion = {
+    mecanica: [
+      { nombre: "Chibs", horas: 22, pagoHoras: 3300, nServicios: 6, comisiones: 5400, total: 8700 },
+      { nombre: "Half-Sack", horas: 15, pagoHoras: 2250, nServicios: 3, comisiones: 2100, total: 4350 },
+    ],
+    bar: [
+      { nombre: "Gemma", horas: 18, pagoHoras: 2160, nServicios: 24, comisiones: 3600, total: 5760 },
+      { nombre: "Lyla", horas: 12, pagoHoras: 1440, nServicios: 15, comisiones: 2250, total: 3690 },
+    ],
+    tatuajes: [
+      { nombre: "Happy", horas: 10, pagoHoras: 1000, nServicios: 5, comisiones: 6500, total: 7500 },
+    ],
+    show: [
+      { nombre: "Ima", horas: 20, pagoHoras: 2000, nServicios: 8, comisiones: 4000, total: 6000 },
+      { nombre: "Cherry", horas: 14, pagoHoras: 1400, nServicios: 5, comisiones: 2500, total: 3900 },
+    ],
+  };
+  render();
+}
+
+// ---------- Render ----------
+function render() {
+  if (!seccionSeleccionada) return;
+  const query = (document.getElementById("searchInput")?.value || "").toLowerCase().trim();
+
+  // Determinar qué secciones renderizar
+  const seccionesFiltradas = seccionSeleccionada === "consolidado" 
+    ? ORDEN_SECCIONES 
+    : [seccionSeleccionada];
+
+  const seccionesConDatos = seccionesFiltradas.filter(k => dataPorSeccion[k]);
+
+  // Si no hay datos, ocultamos el panel del dashboard pero dejamos la zona de carga visible
+  if (seccionesConDatos.length === 0) {
+    document.getElementById("dashboard").classList.add("hidden");
+    document.getElementById("clearBtn").classList.add("hidden");
+    
+    if (seccionSeleccionada !== "consolidado") {
+      document.getElementById("uploadLabel").innerHTML = 
+        `Arrastra aquí el CSV de <strong>${SECCIONES[seccionSeleccionada].label}</strong> o haz clic para seleccionarlo.`;
+    } else {
+      document.getElementById("uploadLabel").innerHTML = 
+        "Arrastra aquí los CSV exportados con <code>/exportar-nomina</code> del bot, o haz clic para elegirlos.";
+    }
+    return;
+  }
+
+  document.getElementById("dashboard").classList.remove("hidden");
+  document.getElementById("clearBtn").classList.remove("hidden");
+
+  // Filtrar los datos locales para la vista actual
+  const dataFiltrada = {};
+  seccionesConDatos.forEach(key => {
+    dataFiltrada[key] = dataPorSeccion[key].filter(r => r.nombre.toLowerCase().includes(query));
+  });
+
+  // KPIs
+  let totalClub = 0, totalTrabajadores = 0, totalServicios = 0;
+  let topSeccion = null, topTotal = -1;
+  seccionesConDatos.forEach(key => {
+    const regs = dataFiltrada[key];
+    const totalSeccion = regs.reduce((s, r) => s + r.total, 0);
+    totalClub += totalSeccion;
+    totalTrabajadores += regs.length;
+    totalServicios += regs.reduce((s, r) => s + r.nServicios, 0);
+    if (totalSeccion > topTotal) { topTotal = totalSeccion; topSeccion = key; }
+  });
+
+  const topSeccionLabel = topSeccion ? SECCIONES[topSeccion].label : "Ninguna";
+  const topSeccionVal = topSeccion ? fmtCLP(topTotal) : "$0";
+
+  document.getElementById("kpis").innerHTML = `
+    <div class="kpi"><div class="label">Total a pagar (${seccionSeleccionada === "consolidado" ? "club" : SECCIONES[seccionSeleccionada].label})</div><div class="value">${fmtCLP(totalClub)}</div><div class="sub">${seccionesConDatos.length} secciones con datos</div></div>
+    <div class="kpi"><div class="label">Trabajadores con pago</div><div class="value">${totalTrabajadores}</div></div>
+    <div class="kpi"><div class="label">Servicios registrados</div><div class="value">${totalServicios}</div></div>
+    ${seccionSeleccionada === "consolidado" ? `
+    <div class="kpi"><div class="label">Sección con más gasto</div><div class="value" style="font-size:17px">${topSeccionLabel}</div><div class="sub">${topSeccionVal}</div></div>
+    ` : `
+    <div class="kpi"><div class="label">Promedio por trabajador</div><div class="value">${totalTrabajadores > 0 ? fmtCLP(totalClub / totalTrabajadores) : "$0"}</div></div>
+    `}
+  `;
+
+  // Barras por sección
+  if (seccionSeleccionada === "consolidado") {
+    const maxTotal = Math.max(...seccionesConDatos.map(k => dataFiltrada[k].reduce((s, r) => s + r.total, 0)), 0);
+    document.getElementById("sectionBars").innerHTML = seccionesConDatos.map(key => {
+      const total = dataFiltrada[key].reduce((s, r) => s + r.total, 0);
+      const pct = maxTotal > 0 ? Math.max((total / maxTotal) * 100, 2) : 2;
+      return `
+        <div class="bar-row">
+          <div class="name">${SECCIONES[key].label}</div>
+          <div class="bar-track"><div class="bar-fill" style="width:${pct}%; background:${colorVar(key)}"></div></div>
+          <div class="amount">${fmtCLP(total)}</div>
+        </div>`;
+    }).join("");
+
+    document.getElementById("legend").innerHTML = seccionesConDatos.map(key =>
+      `<span><span class="dot" style="background:${colorVar(key)}"></span>${SECCIONES[key].label}</span>`
+    ).join("");
+  }
+
+  // Tablas por sección
+  document.getElementById("sectionTables").innerHTML = seccionesConDatos.map(key => {
+    const regs = [...dataFiltrada[key]].sort((a, b) => b.total - a.total);
+    const total = regs.reduce((s, r) => s + r.total, 0);
+    const filas = regs.length
+      ? regs.map(r => `
+          <tr>
+            <td class="name">${r.nombre}</td>
+            <td class="num">${r.horas} h</td>
+            <td class="num">${fmtCLP(r.pagoHours || r.pagoHoras)}</td>
+            <td class="num">${r.nServicios}</td>
+            <td class="num">${fmtCLP(r.comisiones)}</td>
+            <td class="num total">${fmtCLP(r.total)}</td>
+          </tr>`).join("")
+      : `<tr><td colspan="6" class="empty-section">Sin registros coincidentes.</td></tr>`;
+
+    return `
+      <div class="card section-card">
+        <div class="section-head">
+          <div class="tag"><span class="dot" style="background:${colorVar(key)}"></span>${SECCIONES[key].label}</div>
+          <div class="total">${fmtCLP(total)}</div>
+        </div>
+        <table>
+          <thead><tr>
+            <th>Trabajador</th><th class="num">Horas</th><th class="num">Pago horas</th>
+            <th class="num">Servicios</th><th class="num">Comisiones</th><th class="num">Total</th>
+          </tr></thead>
+          <tbody>${filas}</tbody>
+        </table>
+      </div>`;
+  }).join("");
+}
+
+// ---------- Eventos ----------
+const uploadZone = document.getElementById("uploadZone");
+const fileInput = document.getElementById("fileInput");
+
+uploadZone.addEventListener("click", () => fileInput.click());
+["dragenter", "dragover"].forEach(evt =>
+  uploadZone.addEventListener(evt, e => { e.preventDefault(); uploadZone.classList.add("drag"); }));
+["dragleave", "drop"].forEach(evt =>
+  uploadZone.addEventListener(evt, e => { e.preventDefault(); uploadZone.classList.remove("drag"); }));
+uploadZone.addEventListener("drop", e => handleFiles(e.dataTransfer.files));
+fileInput.addEventListener("change", e => handleFiles(e.target.files));
+
+function handleFiles(files) {
+  Array.from(files).forEach(file => {
+    const seccion = detectarSeccion(file.name);
+    const reader = new FileReader();
+    reader.onload = e => {
+      if (!seccion) {
+        alert(`No pude reconocer la sección del archivo "${file.name}". Renómbralo empezando con nomina_mecanica, nomina_bar, nomina_tatuajes o nomina_show.`);
+        return;
+      }
+      cargarCSV(seccion, e.target.result);
+      render();
+    };
+    reader.readAsText(file);
+  });
+}
+async function cargarDatosReales() {
+  try {
+    const res = await fetch("/api/nomina");
+    if (!res.ok) throw new Error("No se pudo obtener la nómina de la API");
+    const json = await res.json();
+    
+    let totalTrabajadores = 0;
+    ORDEN_SECCIONES.forEach(key => {
+      if (json[key] && json[key].length > 0) {
+        totalTrabajadores += json[key].length;
+      }
+    });
+    
+    if (totalTrabajadores > 0) {
+      dataPorSeccion = json;
+      render();
+      document.getElementById("footerNote").innerHTML =
+        "Conectado al bot de Discord: mostrando datos de la nómina en tiempo real (se actualizan al recargar).";
+    }
+  } catch (err) {
+    console.log("No se pudo cargar de forma automática (abriendo archivo local o servidor desconectado):", err);
+  }
+}
+
+document.getElementById("demoBtn").addEventListener("click", cargarDemo);
+document.getElementById("clearBtn").addEventListener("click", () => {
+  dataPorSeccion = {};
+  if (document.getElementById("searchInput")) document.getElementById("searchInput").value = "";
+  document.getElementById("dashboard").classList.add("hidden");
+  document.getElementById("clearBtn").classList.add("hidden");
+  document.getElementById("footerNote").textContent =
+    "Sin datos cargados todavía. Esta página no envía nada a ningún servidor — todo se procesa en tu navegador y se pierde al recargar, así que exporta de nuevo cada semana desde Discord con /exportar-nomina.";
+});
+
+document.getElementById("themeToggle").addEventListener("click", () => {
+  const root = document.documentElement;
+  const isDark = root.getAttribute("data-theme") === "dark";
+  root.setAttribute("data-theme", isDark ? "light" : "dark");
+  document.getElementById("themeToggle").textContent = isDark ? "🌙 Modo oscuro" : "☀️ Modo claro";
+  if (Object.keys(dataPorSeccion).length) render();
+});
+
+if (document.getElementById("searchInput")) {
+  document.getElementById("searchInput").addEventListener("input", render);
+}
+
+// Intentar cargar datos reales del servidor web al iniciar
+cargarDatosReales();
+</script>
+</body>
+</html>

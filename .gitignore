@@ -1,0 +1,4 @@
+.env
+samcro.db
+__pycache__/
+*.pyc
