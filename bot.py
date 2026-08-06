@@ -251,6 +251,7 @@ async def iniciar_servidor_web():
 
 async def custom_setup_hook():
     bot.loop.create_task(iniciar_servidor_web())
+    bot.add_view(PanelControlView())
 
 bot.setup_hook = custom_setup_hook
 
@@ -359,6 +360,270 @@ def _embed_estado(validado: bool):
 
 
 SECCION_CHOICES = [app_commands.Choice(name=v["nombre_visible"], value=k) for k, v in config.SECCIONES.items()]
+
+
+# ---------- Modals y UI para el Panel de Control ----------
+
+class HorasModal(discord.ui.Modal):
+    def __init__(self, seccion_key: str):
+        self.seccion_key = seccion_key
+        info_seccion = config.SECCIONES[seccion_key]
+        super().__init__(title=f"Registrar Horas: {info_seccion['nombre_visible']}")
+
+        self.horas_input = discord.ui.TextInput(
+            label="Cantidad de Horas Trabajadas",
+            placeholder="Ej: 4.5 o 8",
+            min_length=1,
+            max_length=5,
+            required=True
+        )
+        self.nota_input = discord.ui.TextInput(
+            label="Nota / Comentario (Opcional)",
+            style=discord.TextStyle.long,
+            placeholder="Escribe alguna observación...",
+            required=False,
+            max_length=100
+        )
+        self.add_item(self.horas_input)
+        self.add_item(self.nota_input)
+
+    async def on_submit(self, interaction: discord.Interaction):
+        vinculo = await db.trabajador_de_canal(str(interaction.channel.id))
+        if not vinculo or vinculo["discord_id"] != str(interaction.user.id):
+            await interaction.response.send_message("Este panel solo puede ser usado por el dueño de la bitácora.", ephemeral=True)
+            return
+
+        try:
+            horas = float(self.horas_input.value.replace(",", "."))
+        except ValueError:
+            await interaction.response.send_message("Por favor, ingresa un número de horas válido.", ephemeral=True)
+            return
+
+        if horas <= 0 or horas > 16:
+            await interaction.response.send_message("Ingresa un número de horas válido (entre 0 y 16).", ephemeral=True)
+            return
+
+        seccion_key = self.seccion_key
+        info_seccion = config.SECCIONES[seccion_key]
+        auto_validado = 0 if config.REQUIERE_APROBACION else 1
+        nota = self.nota_input.value.strip() or None
+
+        registro_id = await db.registrar_horas(
+            str(interaction.user.id),
+            interaction.user.display_name,
+            seccion_key,
+            horas,
+            nota,
+            validado=auto_validado
+        )
+
+        estado_txt, color = _embed_estado(bool(auto_validado))
+        embed = discord.Embed(title="🕒 Turno registrado", description=info_seccion["nombre_visible"], color=color)
+        embed.add_field(name="Horas", value=f"{horas} h")
+        embed.add_field(name="Pago estimado", value=_peso(horas * info_seccion["tarifa_hora"]))
+        if nota:
+            embed.add_field(name="Nota", value=nota, inline=False)
+        embed.add_field(name="Estado", value=estado_txt, inline=False)
+        if config.REQUIERE_APROBACION:
+            embed.set_footer(text="El jefe del área aprueba reaccionando con ✅ a este mensaje.")
+
+        await interaction.response.send_message(embed=embed)
+        mensaje = await interaction.original_response()
+        await db.set_mensaje(registro_id, str(mensaje.id), str(interaction.channel.id))
+        if config.REQUIERE_APROBACION:
+            await mensaje.add_reaction("✅")
+
+
+class ServicioModal(discord.ui.Modal):
+    def __init__(self, seccion_key: str):
+        self.seccion_key = seccion_key
+        info_seccion = config.SECCIONES[seccion_key]
+        super().__init__(title=f"Registrar Servicio: {info_seccion['nombre_visible']}")
+
+        self.servicio_input = discord.ui.TextInput(
+            label="Nombre del Servicio / Venta",
+            placeholder="Ej: Cambio de aceite, Tatuaje brazo, Show 22:00",
+            min_length=2,
+            max_length=50,
+            required=True
+        )
+        self.monto_input = discord.ui.TextInput(
+            label="Monto Cobrado ($)",
+            placeholder="Ej: 50000 (sin puntos ni signos)",
+            min_length=1,
+            max_length=10,
+            required=True
+        )
+        self.foto_input = discord.ui.TextInput(
+            label="URL de Foto de Respaldo (Opcional)",
+            placeholder="Pega la URL de la imagen si la tienes...",
+            required=False,
+            max_length=200
+        )
+        self.nota_input = discord.ui.TextInput(
+            label="Nota / Comentario (Opcional)",
+            style=discord.TextStyle.long,
+            placeholder="Escribe alguna observación...",
+            required=False,
+            max_length=100
+        )
+        
+        self.add_item(self.servicio_input)
+        self.add_item(self.monto_input)
+        self.add_item(self.foto_input)
+        self.add_item(self.nota_input)
+
+    async def on_submit(self, interaction: discord.Interaction):
+        vinculo = await db.trabajador_de_canal(str(interaction.channel.id))
+        if not vinculo or vinculo["discord_id"] != str(interaction.user.id):
+            await interaction.response.send_message("Este panel solo puede ser usado por el dueño de la bitácora.", ephemeral=True)
+            return
+
+        try:
+            monto = float(self.monto_input.value.strip())
+        except ValueError:
+            await interaction.response.send_message("Por favor, ingresa un monto válido (solo números).", ephemeral=True)
+            return
+
+        if monto <= 0:
+            await interaction.response.send_message("El monto debe ser mayor a 0.", ephemeral=True)
+            return
+
+        seccion_key = self.seccion_key
+        info_seccion = config.SECCIONES[seccion_key]
+        comision = round(monto * info_seccion["comision_servicio"], 2)
+        foto_url = self.foto_input.value.strip() or None
+        auto_validado = 0 if config.REQUIERE_APROBACION else 1
+        nota = self.nota_input.value.strip() or None
+        servicio = self.servicio_input.value.strip()
+
+        registro_id = await db.registrar_servicio(
+            str(interaction.user.id),
+            interaction.user.display_name,
+            seccion_key,
+            servicio,
+            monto,
+            comision,
+            nota,
+            foto_url,
+            validado=auto_validado
+        )
+
+        estado_txt, color = _embed_estado(bool(auto_validado))
+        embed = discord.Embed(title="🧾 Servicio registrado",
+                               description=f"{info_seccion['nombre_visible']} — **{servicio}**", color=color)
+        embed.add_field(name="Monto cobrado", value=_peso(monto))
+        embed.add_field(name="Comisión", value=_peso(comision))
+        if nota:
+            embed.add_field(name="Nota", value=nota, inline=False)
+        embed.add_field(name="Estado", value=estado_txt, inline=False)
+        if foto_url:
+            embed.set_image(url=foto_url)
+        if config.REQUIERE_APROBACION:
+            embed.set_footer(text="El jefe del área aprueba reaccionando con ✅ a este mensaje.")
+
+        await interaction.response.send_message(embed=embed)
+        mensaje = await interaction.original_response()
+        await db.set_mensaje(registro_id, str(mensaje.id), str(interaction.channel.id))
+        if config.REQUIERE_APROBACION:
+            await mensaje.add_reaction("✅")
+
+
+class HorasDropdown(discord.ui.Select):
+    def __init__(self):
+        options = [
+            discord.SelectOption(label=v["nombre_visible"], value=k, description=f"Tarifa: {_peso(v['tarifa_hora'])}/h")
+            for k, v in config.SECCIONES.items()
+        ]
+        super().__init__(
+            custom_id="select_horas_panel",
+            placeholder="🕒 Registrar Horas en...",
+            min_values=1,
+            max_values=1,
+            options=options
+        )
+
+    async def callback(self, interaction: discord.Interaction):
+        vinculo = await db.trabajador_de_canal(str(interaction.channel.id))
+        if not vinculo or vinculo["discord_id"] != str(interaction.user.id):
+            await interaction.response.send_message("Este panel solo puede ser usado por el dueño de la bitácora.", ephemeral=True)
+            return
+
+        seccion_key = self.values[0]
+        modal = HorasModal(seccion_key)
+        await interaction.response.send_modal(modal)
+
+
+class ServicioDropdown(discord.ui.Select):
+    def __init__(self):
+        options = [
+            discord.SelectOption(label=v["nombre_visible"], value=k, description=f"Comisión: {int(v['comision_servicio']*100)}%")
+            for k, v in config.SECCIONES.items()
+        ]
+        super().__init__(
+            custom_id="select_servicio_panel",
+            placeholder="🧾 Registrar Servicio en...",
+            min_values=1,
+            max_values=1,
+            options=options
+        )
+
+    async def callback(self, interaction: discord.Interaction):
+        vinculo = await db.trabajador_de_canal(str(interaction.channel.id))
+        if not vinculo or vinculo["discord_id"] != str(interaction.user.id):
+            await interaction.response.send_message("Este panel solo puede ser usado por el dueño de la bitácora.", ephemeral=True)
+            return
+
+        seccion_key = self.values[0]
+        modal = ServicioModal(seccion_key)
+        await interaction.response.send_modal(modal)
+
+
+class PanelControlView(discord.ui.View):
+    def __init__(self):
+        super().__init__(timeout=None)
+        self.add_item(HorasDropdown())
+        self.add_item(ServicioDropdown())
+
+    @discord.ui.button(label="📊 Ver Mi Resumen Semanal", style=discord.ButtonStyle.secondary, custom_id="btn_resumen_panel")
+    async def btn_resumen(self, interaction: discord.Interaction, button: discord.ui.Button):
+        vinculo = await db.trabajador_de_canal(str(interaction.channel.id))
+        if not vinculo or vinculo["discord_id"] != str(interaction.user.id):
+            await interaction.response.send_message("Este panel solo puede ser usado por el dueño de la bitácora.", ephemeral=True)
+            return
+
+        inicio_utc, fin_utc, inicio_local, fin_local = rango_semana_actual()
+        total_aprobado = 0.0
+        total_pendiente = 0.0
+        detalle = []
+
+        for seccion_key, seccion_info in config.SECCIONES.items():
+            aprobados = await calcular_nomina(seccion_key, inicio_utc, fin_utc, solo_validados=True)
+            todos = await calcular_nomina(seccion_key, inicio_utc, fin_utc, solo_validados=False)
+            d_ap = aprobados.get(str(interaction.user.id))
+            d_todos = todos.get(str(interaction.user.id))
+            if d_ap:
+                total_aprobado += d_ap["total"]
+            if d_todos:
+                pendiente_neto = d_todos["total"] - (d_ap["total"] if d_ap else 0)
+                if pendiente_neto > 0:
+                    total_pendiente += pendiente_neto
+            if d_ap or d_todos:
+                detalle.append(seccion_info["nombre_visible"])
+
+        if not detalle:
+            await interaction.response.send_message(
+                "Todavía no tienes registros esta semana.", ephemeral=True)
+            return
+
+        embed = discord.Embed(title="📋 Tu resumen de la semana", color=discord.Color.blurple())
+        embed.add_field(name="Áreas con registros", value=", ".join(detalle), inline=False)
+        embed.add_field(name="✅ Aprobado (te lo pagan)", value=_peso(total_aprobado))
+        if config.REQUIERE_APROBACION:
+            embed.add_field(name="⏳ Pendiente de aprobación", value=_peso(total_pendiente))
+        embed.set_footer(text=f"Semana: {inicio_local.strftime('%d-%m')} al {fin_local.strftime('%d-%m %H:%M')}")
+
+        await interaction.response.send_message(embed=embed, ephemeral=True)
 
 
 # ---------- Eventos ----------
@@ -475,15 +740,22 @@ async def crear_canal_trabajador(interaction: discord.Interaction, trabajador: d
 
     bienvenida = discord.Embed(
         title=f"👋 Bienvenido/a, {trabajador.display_name}",
-        description="Este es tu canal personal de bitácora. Acá registras lo que hiciste durante la semana "
-                     "(con foto/captura si puedes).",
+        description="Este es tu canal personal de bitácora. Acá puedes registrar tus turnos y comisiones "
+                     "fácilmente usando los menús interactivos de abajo.",
         color=discord.Color.blurple())
-    bienvenida.add_field(name="Registrar un servicio", value="`/registrar-servicio`", inline=False)
-    bienvenida.add_field(name="Registrar horas trabajadas", value="`/registrar-horas`", inline=False)
-    bienvenida.add_field(name="Ver tu resumen de la semana", value="`/mi-resumen`", inline=False)
+    bienvenida.add_field(
+        name="🎮 Panel de Control",
+        value="¡Usa los menús desplegables para registrar horas y servicios! Presiona el botón de resumen para ver tus ganancias semanales.",
+        inline=False
+    )
+    bienvenida.add_field(
+        name="Comandos alternativos (Si prefieres escribir)",
+        value="*   `/registrar-horas`\n*   `/registrar-servicio`\n*   `/mi-resumen`",
+        inline=False
+    )
     bienvenida.set_footer(
         text=f"Todos los domingos a las {config.HORA_CIERRE_SEMANA} se calcula tu pago automáticamente.")
-    await canal.send(content=trabajador.mention, embed=bienvenida)
+    await canal.send(content=trabajador.mention, embed=bienvenida, view=PanelControlView())
 
     await interaction.response.send_message(f"✅ Canal creado: {canal.mention}", ephemeral=True)
 
@@ -628,6 +900,26 @@ async def mi_resumen(interaction: discord.Interaction):
     embed.set_footer(text=f"Semana: {inicio_local.strftime('%d-%m')} al {fin_local.strftime('%d-%m %H:%M')}")
 
     await interaction.response.send_message(embed=embed, ephemeral=True)
+@bot.tree.command(name="panel", description="Muestra el panel de control interactivo para registrar turnos y servicios")
+async def mostrar_panel(interaction: discord.Interaction):
+    vinculo = await db.trabajador_de_canal(str(interaction.channel.id))
+    if not vinculo:
+        await interaction.response.send_message(
+            "Este comando solo se puede usar dentro de tu canal personal de bitácora.", ephemeral=True)
+        return
+    if vinculo["discord_id"] != str(interaction.user.id):
+        await interaction.response.send_message("Este es el canal personal de otro trabajador — usa el tuyo.",
+                                                  ephemeral=True)
+        return
+
+    embed = discord.Embed(
+        title="🏍️ Panel de Control SAMCRO",
+        description="Utiliza los menús desplegables para registrar tus turnos y servicios sin tener que escribir comandos.\n\n"
+                    "*   **Registrar Horas:** Elige tu área y escribe cuántas horas trabajaste.\n"
+                    "*   **Registrar Servicio:** Elige tu área, escribe el servicio, el cobro y opcionalmente añade una foto.",
+        color=discord.Color.dark_grey()
+    )
+    await interaction.response.send_message(embed=embed, view=PanelControlView())
 
 
 # ---------- Comandos: jefe / liderazgo ----------
