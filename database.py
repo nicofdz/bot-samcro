@@ -201,10 +201,10 @@ async def guardar_pago(seccion: str, semana_inicio: str, semana_fin: str, pagado
 
 async def vincular_canal(canal_id: str, discord_id: str, nombre: str):
     async with aiosqlite.connect(DB_PATH) as db:
+        await db.execute("DELETE FROM canales_trabajador WHERE discord_id = ?", (discord_id,))
         await db.execute(
             """INSERT INTO canales_trabajador (canal_id, discord_id, nombre, creado_en)
-               VALUES (?, ?, ?, ?)
-               ON CONFLICT(canal_id) DO UPDATE SET discord_id=excluded.discord_id, nombre=excluded.nombre""",
+               VALUES (?, ?, ?, ?)""",
             (canal_id, discord_id, nombre, datetime.utcnow().isoformat()),
         )
         await db.commit()

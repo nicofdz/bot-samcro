@@ -708,10 +708,10 @@ async def crear_canal_trabajador(interaction: discord.Interaction, trabajador: d
     existente = await db.canal_de_trabajador(str(trabajador.id))
     if existente:
         canal_existente = interaction.guild.get_channel(int(existente["canal_id"]))
-        await interaction.response.send_message(
-            f"{trabajador.display_name} ya tiene su canal: "
-            f"{canal_existente.mention if canal_existente else '#' + existente['nombre']}", ephemeral=True)
-        return
+        if canal_existente:
+            await interaction.response.send_message(
+                f"{trabajador.display_name} ya tiene su canal: {canal_existente.mention}", ephemeral=True)
+            return
 
     categoria = discord.utils.get(interaction.guild.categories, name=config.CATEGORIA_BITACORAS)
     if not categoria:
