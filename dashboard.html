@@ -192,40 +192,144 @@
     color: var(--text-primary);
     border-color: var(--baseline);
   }
+
+  /* Login Screen Styles */
+  .login-container {
+    max-width: 400px;
+    margin: 80px auto;
+    padding: 0 20px;
+  }
+  .login-card {
+    background: var(--surface-1);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    padding: 30px 24px;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.08);
+    text-align: center;
+  }
+  .login-card h2 {
+    font-size: 13px;
+    text-transform: uppercase;
+    letter-spacing: 4px;
+    color: var(--text-secondary);
+    margin-bottom: 6px;
+  }
+  .login-card h1 {
+    font-size: 26px;
+    font-weight: 750;
+    margin: 0 0 8px;
+  }
+  .login-card p {
+    font-size: 13px;
+    color: var(--text-muted);
+    margin-bottom: 24px;
+  }
+  .input-group {
+    text-align: left;
+    margin-bottom: 16px;
+  }
+  .input-group label {
+    display: block;
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--text-secondary);
+    margin-bottom: 6px;
+  }
+  .input-group input {
+    width: 100%;
+    padding: 10px 12px;
+    border: 1px solid var(--border);
+    background: var(--surface-1);
+    color: var(--text-primary);
+    border-radius: 8px;
+    font-size: 13px;
+    outline: none;
+    transition: border-color 0.15s ease;
+  }
+  .input-group input:focus {
+    border-color: var(--series-mecanica);
+  }
+  .login-btn {
+    width: 100%;
+    padding: 11px;
+    background: var(--text-primary);
+    color: var(--surface-1);
+    border: none;
+    border-radius: 8px;
+    font-weight: 600;
+    font-size: 14px;
+    cursor: pointer;
+    transition: opacity 0.15s ease;
+  }
+  .login-btn:hover {
+    opacity: 0.9;
+  }
+  .error-message {
+    color: #e53e3e;
+    font-size: 12px;
+    margin-bottom: 12px;
+    text-align: left;
+  }
 </style>
 </head>
 <body>
 <div class="viz-root">
   <div class="wrap">
 
+    <!-- LOGIN VIEW -->
+    <div id="loginView" class="login-container hidden">
+      <div class="login-card">
+        <h2>SAMCRO MC</h2>
+        <h1>Acceso al Portal</h1>
+        <p>Introduce tus credenciales para continuar</p>
+        
+        <form id="loginForm" onsubmit="handleLoginSubmit(event)">
+          <div class="input-group">
+            <label for="loginUser">Usuario</label>
+            <input type="text" id="loginUser" required placeholder="Ingresa tu usuario">
+          </div>
+          <div class="input-group">
+            <label for="loginPass">Contraseña</label>
+            <input type="password" id="loginPass" required placeholder="Ingresa tu contraseña">
+          </div>
+          <div id="loginError" class="error-message hidden"></div>
+          <button type="submit" class="login-btn">Iniciar Sesión</button>
+        </form>
+      </div>
+    </div>
+
     <!-- LOBBY VIEW (MENU DE ENTRADA) -->
-    <div id="lobbyView" class="lobby-container">
+    <div id="lobbyView" class="lobby-container hidden">
+      <div style="display: flex; justify-content: flex-end; gap: 10px; margin-bottom: 24px;">
+        <button class="btn" id="adminBtn" onclick="irAAdmin()" type="button" style="display: none; align-items: center; gap: 6px;">⚙️ Usuarios</button>
+        <button class="btn" onclick="handleLogout()" type="button" style="align-items: center; gap: 6px;">🚪 Cerrar Sesión</button>
+      </div>
       <h2>SAMCRO MC</h2>
       <h1>Portal de Nóminas</h1>
       <p>Selecciona una sección para ver los detalles de pago y estadísticas</p>
       
       <div class="lobby-grid">
-        <div class="lobby-card" onclick="seleccionarSeccion('mecanica')">
+        <div class="lobby-card" data-seccion="mecanica" onclick="seleccionarSeccion('mecanica')">
           <div class="lobby-icon">🔧</div>
           <h3>Mecánica</h3>
           <span class="lobby-desc">Nómina de mecánicos y comisiones de reparaciones</span>
         </div>
-        <div class="lobby-card" onclick="seleccionarSeccion('bar')">
+        <div class="lobby-card" data-seccion="bar" onclick="seleccionarSeccion('bar')">
           <div class="lobby-icon">🍺</div>
           <h3>Bar / Comida</h3>
           <span class="lobby-desc">Nómina de bartenders y comisiones de venta</span>
         </div>
-        <div class="lobby-card" onclick="seleccionarSeccion('tatuajes')">
+        <div class="lobby-card" data-seccion="tatuajes" onclick="seleccionarSeccion('tatuajes')">
           <div class="lobby-icon">🖋️</div>
           <h3>Tatuajes</h3>
           <span class="lobby-desc">Nómina de tatuadores y comisiones de diseños</span>
         </div>
-        <div class="lobby-card" onclick="seleccionarSeccion('show')">
+        <div class="lobby-card" data-seccion="show" onclick="seleccionarSeccion('show')">
           <div class="lobby-icon">💃</div>
           <h3>Bailarinas / Show</h3>
           <span class="lobby-desc">Nómina de bailarinas y comisiones de shows</span>
         </div>
-        <div class="lobby-card club-card" onclick="seleccionarSeccion('consolidado')">
+        <div class="lobby-card club-card" data-seccion="consolidado" onclick="seleccionarSeccion('consolidado')">
           <div class="lobby-icon">🏍️</div>
           <h3>Club Completo</h3>
           <span class="lobby-desc">Resumen general consolidado de todas las áreas</span>
@@ -273,6 +377,82 @@
       <footer id="footerNote">
         Sin datos cargados todavía. Esta página no envía nada a ningún servidor — todo se procesa en tu navegador y se pierde al recargar, así que exporta de nuevo cada semana desde Discord con <code>/exportar-nomina</code>.
       </footer>
+    </div>
+
+    <!-- USER MANAGEMENT VIEW -->
+    <div id="adminView" class="hidden">
+      <header>
+        <div class="header-left">
+          <button class="back-btn" onclick="volverDeAdmin()" type="button">⬅️ Volver</button>
+          <h1>Administración de Usuarios</h1>
+        </div>
+      </header>
+
+      <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 20px; margin-top: 20px;">
+        <!-- Lista de usuarios -->
+        <div class="card">
+          <h2>Usuarios Existentes</h2>
+          <div style="overflow-x: auto;">
+            <table style="width: 100%; border-collapse: collapse;">
+              <thead>
+                <tr>
+                  <th>Usuario</th>
+                  <th>Rol</th>
+                  <th>Permisos</th>
+                  <th class="num">Acción</th>
+                </tr>
+              </thead>
+              <tbody id="usuariosTableBody">
+                <!-- Se rellena dinámicamente -->
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- Formulario Crear Usuario -->
+        <div class="card">
+          <h2>Crear Nuevo Usuario</h2>
+          <form id="createUserForm" onsubmit="handleCreateUserSubmit(event)">
+            <div class="input-group" style="margin-bottom: 12px;">
+              <label for="newUsername">Usuario</label>
+              <input type="text" id="newUsername" required placeholder="Nombre de usuario">
+            </div>
+            <div class="input-group" style="margin-bottom: 12px;">
+              <label for="newPassword">Contraseña</label>
+              <input type="password" id="newPassword" required placeholder="Contraseña temporal">
+            </div>
+            <div class="input-group" style="margin-bottom: 12px;">
+              <label for="newRol">Rol del Usuario</label>
+              <select id="newRol" style="width: 100%; padding: 8px 12px; border: 1px solid var(--border); background: var(--surface-1); color: var(--text-primary); border-radius: 8px; font-size: 13px;">
+                <option value="jefe">Encargado de Área (Jefe)</option>
+                <option value="superadmin">Administrador Total (Super Admin)</option>
+              </select>
+            </div>
+            <div class="input-group" style="margin-bottom: 12px;">
+              <label style="display:block; margin-bottom:6px;">Permisos de Acceso</label>
+              <div style="display: flex; flex-direction: column; gap: 8px; margin-top: 6px; font-size: 13px;">
+                <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
+                  <input type="checkbox" value="consolidado" class="permiso-checkbox"> 🏍️ Club Completo (Consolidado)
+                </label>
+                <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
+                  <input type="checkbox" value="mecanica" class="permiso-checkbox"> 🔧 Mecánica
+                </label>
+                <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
+                  <input type="checkbox" value="bar" class="permiso-checkbox"> 🍺 Bar / Comida
+                </label>
+                <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
+                  <input type="checkbox" value="tatuajes" class="permiso-checkbox"> 🖋️ Tatuajes
+                </label>
+                <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
+                  <input type="checkbox" value="show" class="permiso-checkbox"> 💃 Bailarinas / Show
+                </label>
+              </div>
+            </div>
+            <div id="createUserError" class="error-message hidden" style="color: red; font-size: 12px; margin-bottom: 10px;"></div>
+            <button type="submit" class="btn" style="width: 100%; background: var(--series-mecanica); color: white; border: none; padding: 10px; font-weight: 600; border-radius:8px;">Crear Usuario</button>
+          </form>
+        </div>
+      </div>
     </div>
 
   </div>
@@ -535,27 +715,212 @@ function handleFiles(files) {
     reader.readAsText(file);
   });
 }
+let usuarioLogueado = null; // { username, rol, permisos }
+
 async function cargarDatosReales() {
+  try {
+    const res = await fetch("/api/me");
+    if (res.status === 401) {
+      mostrarPantallaLogin();
+      return;
+    }
+    if (!res.ok) throw new Error("Error de sesión");
+    
+    usuarioLogueado = await res.json();
+    mostrarLobby();
+    await cargarNominaData();
+  } catch (err) {
+    console.log("No conectado o error al iniciar sesion:", err);
+    if (window.location.protocol === "file:") {
+      document.getElementById("lobbyView").classList.remove("hidden");
+      document.getElementById("loginView").classList.add("hidden");
+      actualizarLobbyPermisos();
+    } else {
+      mostrarPantallaLogin();
+    }
+  }
+}
+
+async function cargarNominaData() {
   try {
     const res = await fetch("/api/nomina");
     if (!res.ok) throw new Error("No se pudo obtener la nómina de la API");
     const json = await res.json();
-    
-    let totalTrabajadores = 0;
-    ORDEN_SECCIONES.forEach(key => {
-      if (json[key] && json[key].length > 0) {
-        totalTrabajadores += json[key].length;
-      }
-    });
-    
-    if (totalTrabajadores > 0) {
-      dataPorSeccion = json;
+    dataPorSeccion = json;
+    if (seccionSeleccionada) {
       render();
-      document.getElementById("footerNote").innerHTML =
-        "Conectado al bot de Discord: mostrando datos de la nómina en tiempo real (se actualizan al recargar).";
     }
   } catch (err) {
-    console.log("No se pudo cargar de forma automática (abriendo archivo local o servidor desconectado):", err);
+    console.error("Error al cargar datos de nomina:", err);
+  }
+}
+
+function actualizarLobbyPermisos() {
+  if (window.location.protocol === "file:") {
+    document.querySelectorAll(".lobby-card").forEach(el => el.classList.remove("hidden"));
+    document.getElementById("adminBtn").style.display = "none";
+    return;
+  }
+  if (!usuarioLogueado) return;
+  const permisos = usuarioLogueado.permisos || [];
+  const esSuperAdmin = usuarioLogueado.rol === "superadmin";
+
+  document.getElementById("adminBtn").style.display = esSuperAdmin ? "inline-flex" : "none";
+
+  document.querySelectorAll(".lobby-card").forEach(el => {
+    const seccion = el.getAttribute("data-seccion");
+    if (permisos.includes("consolidado") || permisos.includes(seccion)) {
+      el.classList.remove("hidden");
+    } else {
+      el.classList.add("hidden");
+    }
+  });
+}
+
+function mostrarPantallaLogin() {
+  document.getElementById("lobbyView").classList.add("hidden");
+  document.getElementById("dashboardWrapper").classList.add("hidden");
+  document.getElementById("adminView").classList.add("hidden");
+  document.getElementById("loginView").classList.remove("hidden");
+}
+
+function mostrarLobby() {
+  document.getElementById("loginView").classList.add("hidden");
+  document.getElementById("dashboardWrapper").classList.add("hidden");
+  document.getElementById("adminView").classList.add("hidden");
+  document.getElementById("lobbyView").classList.remove("hidden");
+  actualizarLobbyPermisos();
+}
+
+async function handleLoginSubmit(e) {
+  e.preventDefault();
+  const username = document.getElementById("loginUser").value.trim();
+  const password = document.getElementById("loginPass").value;
+  const errorEl = document.getElementById("loginError");
+  
+  try {
+    const res = await fetch("/api/login", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ username, password })
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || "Error al iniciar sesión");
+    
+    usuarioLogueado = data;
+    errorEl.classList.add("hidden");
+    document.getElementById("loginUser").value = "";
+    document.getElementById("loginPass").value = "";
+    
+    mostrarLobby();
+    await cargarNominaData();
+  } catch (err) {
+    errorEl.textContent = err.message;
+    errorEl.classList.remove("hidden");
+  }
+}
+
+async function handleLogout() {
+  try {
+    await fetch("/api/logout", { method: "POST" });
+  } catch (err) {
+    console.error("Error al cerrar sesion:", err);
+  }
+  usuarioLogueado = null;
+  seccionSeleccionada = null;
+  dataPorSeccion = {};
+  mostrarPantallaLogin();
+}
+
+function irAAdmin() {
+  document.getElementById("lobbyView").classList.add("hidden");
+  document.getElementById("adminView").classList.remove("hidden");
+  cargarUsuariosList();
+}
+
+function volverDeAdmin() {
+  mostrarLobby();
+}
+
+async function cargarUsuariosList() {
+  const tbody = document.getElementById("usuariosTableBody");
+  tbody.innerHTML = '<tr><td colspan="4">Cargando usuarios...</td></tr>';
+  
+  try {
+    const res = await fetch("/api/usuarios");
+    if (!res.ok) throw new Error("No se pudo obtener la lista de usuarios");
+    const usuarios = await res.json();
+    
+    tbody.innerHTML = usuarios.map(u => {
+      const isSelf = u.username === usuarioLogueado.username;
+      const btnEliminar = isSelf 
+        ? '<span style="color: var(--text-muted);">Actual (tú)</span>'
+        : `<button class="btn" onclick="eliminarUsuario('${u.username}')" style="background:#e53e3e; color:white; border:none; padding:4px 8px; font-size:11px;">Eliminar</button>`;
+      
+      const permisosList = u.permisos.map(p => {
+        if (p === "consolidado") return "Club Completo";
+        return SECCIONES[p] ? SECCIONES[p].label : p;
+      }).join(", ");
+      
+      return `
+        <tr>
+          <td><strong>${u.username}</strong></td>
+          <td><span style="font-size:11px; text-transform:uppercase; background:var(--grid); padding:3px 6px; border-radius:4px;">${u.rol}</span></td>
+          <td>${permisosList}</td>
+          <td class="num">${btnEliminar}</td>
+        </tr>
+      `;
+    }).join("");
+  } catch (err) {
+    tbody.innerHTML = `<tr><td colspan="4" style="color:red;">Error: ${err.message}</td></tr>`;
+  }
+}
+
+async function handleCreateUserSubmit(e) {
+  e.preventDefault();
+  const username = document.getElementById("newUsername").value.trim();
+  const password = document.getElementById("newPassword").value;
+  const rol = document.getElementById("newRol").value;
+  const errorEl = document.getElementById("createUserError");
+  
+  const permisos = [];
+  document.querySelectorAll(".permiso-checkbox:checked").forEach(cb => {
+    permisos.push(cb.value);
+  });
+  
+  try {
+    const res = await fetch("/api/usuarios", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ username, password, rol, permisos })
+    });
+    
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || "Error al crear usuario");
+    
+    document.getElementById("newUsername").value = "";
+    document.getElementById("newPassword").value = "";
+    document.getElementById("newRol").value = "jefe";
+    document.querySelectorAll(".permiso-checkbox").forEach(cb => cb.checked = false);
+    
+    errorEl.classList.add("hidden");
+    await cargarUsuariosList();
+  } catch (err) {
+    errorEl.textContent = err.message;
+    errorEl.classList.remove("hidden");
+  }
+}
+
+async function eliminarUsuario(username) {
+  if (!confirm(`¿Estás seguro de que deseas eliminar al usuario "${username}"?`)) return;
+  try {
+    const res = await fetch(`/api/usuarios/${username}`, { method: "DELETE" });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || "Error al eliminar usuario");
+    
+    await cargarUsuariosList();
+  } catch (err) {
+    alert(`Error: ${err.message}`);
   }
 }
 

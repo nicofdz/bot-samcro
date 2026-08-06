@@ -32,9 +32,11 @@ Comandos:
 import base64
 import csv
 import io
+import json
 import os
 import re
 import unicodedata
+import uuid
 from datetime import datetime, timedelta, time as dtime
 from zoneinfo import ZoneInfo
 
@@ -71,52 +73,158 @@ async def handle_dashboard(request):
 
 async def handle_api_nomina(request):
     try:
+        user = request["user"]
+        user_permisos = json.loads(user["permisos"])
+        
         inicio_utc, fin_utc, _, _ = rango_semana_actual()
         data = {}
         for seccion_key in config.SECCIONES.keys():
-            resumen = await calcular_nomina(seccion_key, inicio_utc, fin_utc, solo_validados=True)
-            data[seccion_key] = [
-                {
-                    "nombre": v["nombre"],
-                    "horas": v["horas"],
-                    "pagoHoras": v["pago_horas"],
-                    "nServicios": v["n_servicios"],
-                    "comisiones": v["pago_comisiones"],
-                    "total": v["total"]
-                }
-                for v in resumen.values()
-            ]
+            if seccion_key in user_permisos or "consolidado" in user_permisos:
+                resumen = await calcular_nomina(seccion_key, inicio_utc, fin_utc, solo_validados=True)
+                data[seccion_key] = [
+                    {
+                        "nombre": v["nombre"],
+                        "horas": v["horas"],
+                        "pagoHoras": v["pago_horas"],
+                        "nServicios": v["n_servicios"],
+                        "comisiones": v["pago_comisiones"],
+                        "total": v["total"]
+                    }
+                    for v in resumen.values()
+                ]
+            else:
+                data[seccion_key] = []
         return web.json_response(data)
+    except Exception as e:
+        return web.json_response({"error": str(e)}, status=500)
+
+
+async def handle_api_login(request):
+    try:
+        payload = await request.json()
+        username = payload.get("username", "").strip()
+        password = payload.get("password", "")
+        
+        if not username or not password:
+            return web.json_response({"error": "Faltan credenciales"}, status=400)
+            
+        user = await db.obtener_usuario(username)
+        if not user or not db.verify_password(user["password_hash"], password):
+            return web.json_response({"error": "Usuario o contraseña incorrectos"}, status=401)
+            
+        session_id = str(uuid.uuid4())
+        expira_en = (datetime.utcnow() + timedelta(days=7)).isoformat()
+        await db.crear_sesion(session_id, username, expira_en)
+        
+        response = web.json_response({
+            "username": user["username"],
+            "rol": user["rol"],
+            "permisos": json.loads(user["permisos"])
+        })
+        response.set_cookie(
+            "session_id",
+            session_id,
+            max_age=7 * 24 * 60 * 60,
+            httponly=True,
+            samesite="Lax"
+        )
+        return response
+    except Exception as e:
+        return web.json_response({"error": str(e)}, status=500)
+
+
+async def handle_api_logout(request):
+    session_id = request.cookies.get("session_id")
+    if session_id:
+        await db.eliminar_sesion(session_id)
+    response = web.json_response({"success": True})
+    response.del_cookie("session_id")
+    return response
+
+
+async def handle_api_me(request):
+    user = request["user"]
+    return web.json_response({
+        "username": user["username"],
+        "rol": user["rol"],
+        "permisos": json.loads(user["permisos"])
+    })
+
+
+async def handle_listar_usuarios(request):
+    user = request["user"]
+    if user["rol"] != "superadmin":
+        return web.json_response({"error": "No autorizado"}, status=403)
+        
+    try:
+        usuarios = await db.listar_usuarios()
+        for u in usuarios:
+            u["permisos"] = json.loads(u["permisos"])
+        return web.json_response(usuarios)
+    except Exception as e:
+        return web.json_response({"error": str(e)}, status=500)
+
+
+async def handle_crear_usuario(request):
+    user = request["user"]
+    if user["rol"] != "superadmin":
+        return web.json_response({"error": "No autorizado"}, status=403)
+        
+    try:
+        payload = await request.json()
+        username = payload.get("username", "").strip()
+        password = payload.get("password", "")
+        rol = payload.get("rol", "jefe")
+        permisos = payload.get("permisos", [])
+        
+        if not username or not password:
+            return web.json_response({"error": "Faltan campos obligatorios"}, status=400)
+            
+        await db.crear_usuario(username, password, rol, json.dumps(permisos))
+        return web.json_response({"success": True})
+    except Exception as e:
+        return web.json_response({"error": str(e)}, status=500)
+
+
+async def handle_eliminar_usuario(request):
+    user = request["user"]
+    if user["rol"] != "superadmin":
+        return web.json_response({"error": "No autorizado"}, status=403)
+        
+    try:
+        username_to_delete = request.match_info.get("username")
+        if username_to_delete == user["username"]:
+            return web.json_response({"error": "No puedes eliminarte a ti mismo"}, status=400)
+            
+        target = await db.obtener_usuario(username_to_delete)
+        if not target:
+            return web.json_response({"error": "El usuario no existe"}, status=404)
+            
+        await db.eliminar_usuario(username_to_delete)
+        return web.json_response({"success": True})
     except Exception as e:
         return web.json_response({"error": str(e)}, status=500)
 
 
 async def auth_middleware(app, handler):
     async def middleware(request):
-        auth_user = os.getenv("DASHBOARD_USER")
-        auth_pass = os.getenv("DASHBOARD_PASS")
-        if auth_user and auth_pass:
-            auth_header = request.headers.get("Authorization")
-            if not auth_header:
-                return web.Response(
-                    status=401,
-                    text="Acceso denegado. Inicia sesion.",
-                    headers={"WWW-Authenticate": 'Basic realm="SAMCRO Dashboard"'}
-                )
-            try:
-                auth_type, encoded = auth_header.split(" ", 1)
-                if auth_type.lower() == "basic":
-                    decoded = base64.b64decode(encoded).decode("utf-8")
-                    username, password = decoded.split(":", 1)
-                    if username == auth_user and password == auth_pass:
-                        return await handler(request)
-            except Exception:
-                pass
-            return web.Response(
-                status=401,
-                text="Credenciales incorrectas.",
-                headers={"WWW-Authenticate": 'Basic realm="SAMCRO Dashboard"'}
-            )
+        public_paths = ["/", "/api/login", "/api/logout"]
+        if request.path in public_paths:
+            return await handler(request)
+            
+        session_id = request.cookies.get("session_id")
+        session = None
+        if session_id:
+            session = await db.verificar_sesion(session_id)
+            
+        if not session:
+            return web.json_response({"error": "No autorizado"}, status=401)
+            
+        user = await db.obtener_usuario(session["username"])
+        if not user:
+            return web.json_response({"error": "Usuario no encontrado"}, status=401)
+            
+        request["user"] = user
         return await handler(request)
     return middleware
 
@@ -124,7 +232,14 @@ async def auth_middleware(app, handler):
 async def iniciar_servidor_web():
     app = web.Application(middlewares=[auth_middleware])
     app.router.add_get("/", handle_dashboard)
+    app.router.add_post("/api/login", handle_api_login)
+    app.router.add_post("/api/logout", handle_api_logout)
+    app.router.add_get("/api/me", handle_api_me)
     app.router.add_get("/api/nomina", handle_api_nomina)
+    
+    app.router.add_get("/api/usuarios", handle_listar_usuarios)
+    app.router.add_post("/api/usuarios", handle_crear_usuario)
+    app.router.add_delete("/api/usuarios/{username}", handle_eliminar_usuario)
     
     port = int(os.getenv("PORT", 8080))
     runner = web.AppRunner(app)
@@ -251,6 +366,15 @@ SECCION_CHOICES = [app_commands.Choice(name=v["nombre_visible"], value=k) for k,
 @bot.event
 async def on_ready():
     await db.iniciar_db()
+    
+    # Inicializar Super Admin automático
+    admin_user = os.getenv("DASHBOARD_USER")
+    admin_pass = os.getenv("DASHBOARD_PASS")
+    if admin_user and admin_pass:
+        permisos = ["consolidado"] + list(config.SECCIONES.keys())
+        await db.crear_usuario(admin_user, admin_pass, "superadmin", json.dumps(permisos))
+        print(f"Super Admin '{admin_user}' creado o actualizado en la base de datos.")
+
     if GUILD_ID:
         guild = discord.Object(id=int(GUILD_ID))
         bot.tree.copy_global_to(guild=guild)

@@ -50,6 +50,21 @@ CREATE TABLE IF NOT EXISTS estado (
     clave TEXT PRIMARY KEY,
     valor TEXT
 );
+
+CREATE TABLE IF NOT EXISTS usuarios (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    username TEXT UNIQUE NOT NULL,
+    password_hash TEXT NOT NULL,
+    rol TEXT NOT NULL,
+    permisos TEXT NOT NULL,
+    creado_en TEXT NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS sesiones (
+    session_id TEXT PRIMARY KEY,
+    username TEXT NOT NULL,
+    expira_en TEXT NOT NULL
+);
 """
 
 
@@ -234,4 +249,94 @@ async def guardar_estado(clave: str, valor: str):
             "INSERT INTO estado (clave, valor) VALUES (?, ?) ON CONFLICT(clave) DO UPDATE SET valor=excluded.valor",
             (clave, valor),
         )
+        await db.commit()
+
+
+# ---------- Autenticación, Hashing y Usuarios ----------
+import hashlib
+import os
+
+def hash_password(password: str) -> str:
+    salt = os.urandom(16)
+    key = hashlib.pbkdf2_hmac('sha256', password.encode('utf-8'), salt, 100000)
+    return salt.hex() + "$" + key.hex()
+
+
+def verify_password(stored_hash: str, password: str) -> bool:
+    try:
+        salt_hex, key_hex = stored_hash.split("$", 1)
+        salt = bytes.fromhex(salt_hex)
+        key = bytes.fromhex(key_hex)
+        new_key = hashlib.pbkdf2_hmac('sha256', password.encode('utf-8'), salt, 100000)
+        return key == new_key
+    except Exception:
+        return False
+
+
+async def crear_usuario(username: str, password_plain: str, rol: str, permisos_json: str):
+    password_hash = hash_password(password_plain)
+    async with aiosqlite.connect(DB_PATH) as db:
+        await db.execute(
+            """INSERT INTO usuarios (username, password_hash, rol, permisos, creado_en)
+               VALUES (?, ?, ?, ?, ?)
+               ON CONFLICT(username) DO UPDATE SET
+               password_hash=excluded.password_hash, rol=excluded.rol, permisos=excluded.permisos""",
+            (username, password_hash, rol, permisos_json, datetime.utcnow().isoformat()),
+        )
+        await db.commit()
+
+
+async def obtener_usuario(username: str):
+    async with aiosqlite.connect(DB_PATH) as db:
+        db.row_factory = aiosqlite.Row
+        async with db.execute("SELECT * FROM usuarios WHERE username = ?", (username,)) as cursor:
+            row = await cursor.fetchone()
+            return dict(row) if row else None
+
+
+async def eliminar_usuario(username: str):
+    async with aiosqlite.connect(DB_PATH) as db:
+        await db.execute("DELETE FROM usuarios WHERE username = ?", (username,))
+        await db.commit()
+
+
+async def listar_usuarios():
+    async with aiosqlite.connect(DB_PATH) as db:
+        db.row_factory = aiosqlite.Row
+        async with db.execute("SELECT username, rol, permisos, creado_en FROM usuarios ORDER BY username ASC") as cursor:
+            rows = await cursor.fetchall()
+            return [dict(r) for r in rows]
+
+
+# ---------- Sesiones ----------
+
+async def crear_sesion(session_id: str, username: str, expira_en_iso: str):
+    async with aiosqlite.connect(DB_PATH) as db:
+        await db.execute(
+            "INSERT INTO sesiones (session_id, username, expira_en) VALUES (?, ?, ?)",
+            (session_id, username, expira_en_iso),
+        )
+        await db.commit()
+
+
+async def verificar_sesion(session_id: str):
+    async with aiosqlite.connect(DB_PATH) as db:
+        db.row_factory = aiosqlite.Row
+        async with db.execute(
+            "SELECT * FROM sesiones WHERE session_id = ? AND expira_en > ?",
+            (session_id, datetime.utcnow().isoformat()),
+        ) as cursor:
+            row = await cursor.fetchone()
+            return dict(row) if row else None
+
+
+async def eliminar_sesion(session_id: str):
+    async with aiosqlite.connect(DB_PATH) as db:
+        await db.execute("DELETE FROM sesiones WHERE session_id = ?", (session_id,))
+        await db.commit()
+
+
+async def limpiar_sesiones_expiradas():
+    async with aiosqlite.connect(DB_PATH) as db:
+        await db.execute("DELETE FROM sesiones WHERE expira_en <= ?", (datetime.utcnow().isoformat(),))
         await db.commit()
