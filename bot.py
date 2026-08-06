@@ -29,6 +29,7 @@ Comandos:
   /marcar-pagado             -> (jefe/liderazgo) deja constancia de pago
   /tarifas                   -> ve las tarifas vigentes de una sección
 """
+import asyncio
 import base64
 import csv
 import io
@@ -454,12 +455,6 @@ class ServicioModal(discord.ui.Modal):
             max_length=10,
             required=True
         )
-        self.foto_input = discord.ui.TextInput(
-            label="URL de Foto de Respaldo (Opcional)",
-            placeholder="Pega la URL de la imagen si la tienes...",
-            required=False,
-            max_length=200
-        )
         self.nota_input = discord.ui.TextInput(
             label="Nota / Comentario (Opcional)",
             style=discord.TextStyle.long,
@@ -470,7 +465,6 @@ class ServicioModal(discord.ui.Modal):
         
         self.add_item(self.servicio_input)
         self.add_item(self.monto_input)
-        self.add_item(self.foto_input)
         self.add_item(self.nota_input)
 
     async def on_submit(self, interaction: discord.Interaction):
@@ -489,10 +483,36 @@ class ServicioModal(discord.ui.Modal):
             await interaction.response.send_message("El monto debe ser mayor a 0.", ephemeral=True)
             return
 
+        # Responder de inmediato de forma efímera para no expirar la interacción (límite de 3 segundos)
+        await interaction.response.send_message(
+            "🧾 **Datos recibidos.**\n"
+            "Por favor, **sube la foto/captura de pantalla** de respaldo en este canal en los próximos 60 segundos (o escribe `omitir` si no tienes foto).",
+            ephemeral=True
+        )
+
+        def check(m):
+            return m.channel.id == interaction.channel.id and m.author.id == interaction.user.id
+
+        foto_url = None
+        try:
+            msg = await bot.wait_for('message', check=check, timeout=60.0)
+            if msg.attachments:
+                foto_url = msg.attachments[0].url
+                try:
+                    await msg.delete()
+                except Exception:
+                    pass
+            elif msg.content.lower().strip() in ['omitir', 'no', 'ninguna', 'skip']:
+                try:
+                    await msg.delete()
+                except Exception:
+                    pass
+        except asyncio.TimeoutError:
+            pass
+
         seccion_key = self.seccion_key
         info_seccion = config.SECCIONES[seccion_key]
         comision = round(monto * info_seccion["comision_servicio"], 2)
-        foto_url = self.foto_input.value.strip() or None
         auto_validado = 0 if config.REQUIERE_APROBACION else 1
         nota = self.nota_input.value.strip() or None
         servicio = self.servicio_input.value.strip()
@@ -522,8 +542,8 @@ class ServicioModal(discord.ui.Modal):
         if config.REQUIERE_APROBACION:
             embed.set_footer(text="El jefe del área aprueba reaccionando con ✅ a este mensaje.")
 
-        await interaction.response.send_message(embed=embed)
-        mensaje = await interaction.original_response()
+        canal = interaction.channel
+        mensaje = await canal.send(embed=embed)
         await db.set_mensaje(registro_id, str(mensaje.id), str(interaction.channel.id))
         if config.REQUIERE_APROBACION:
             await mensaje.add_reaction("✅")
