@@ -45,6 +45,7 @@ import discord
 from discord import app_commands
 from discord.ext import commands, tasks
 from dotenv import load_dotenv
+import aiohttp
 from aiohttp import web
 
 import config
@@ -96,6 +97,35 @@ async def handle_api_nomina(request):
             else:
                 data[seccion_key] = []
         return web.json_response(data)
+    except Exception as e:
+        return web.json_response({"error": str(e)}, status=500)
+
+
+async def handle_api_detalles(request):
+    try:
+        user = request["user"]
+        user_permisos = json.loads(user["permisos"])
+        
+        seccion_key = request.match_info.get("seccion")
+        username = request.match_info.get("username")
+        
+        if not (seccion_key in user_permisos or "consolidado" in user_permisos):
+            return web.json_response({"error": "No autorizado para esta sección"}, status=403)
+            
+        inicio_utc, fin_utc, _, _ = rango_semana_actual()
+        
+        import aiosqlite
+        async with aiosqlite.connect(db.DB_PATH) as conn:
+            conn.row_factory = aiosqlite.Row
+            async with conn.execute(
+                """SELECT id, tipo, horas, servicio_nombre, monto, comision, nota, foto_url, creado_en 
+                   FROM registros 
+                   WHERE nombre = ? AND seccion = ? AND creado_en >= ? AND creado_en < ? AND validado = 1""",
+                (username, seccion_key, inicio_utc.isoformat(), fin_utc.isoformat())
+            ) as cursor:
+                rows = await cursor.fetchall()
+                detalles = [dict(r) for r in rows]
+                return web.json_response(detalles)
     except Exception as e:
         return web.json_response({"error": str(e)}, status=500)
 
@@ -237,10 +267,14 @@ async def iniciar_servidor_web():
     app.router.add_post("/api/logout", handle_api_logout)
     app.router.add_get("/api/me", handle_api_me)
     app.router.add_get("/api/nomina", handle_api_nomina)
+    app.router.add_get("/api/detalles/{seccion}/{username}", handle_api_detalles)
     
     app.router.add_get("/api/usuarios", handle_listar_usuarios)
     app.router.add_post("/api/usuarios", handle_crear_usuario)
     app.router.add_delete("/api/usuarios/{username}", handle_eliminar_usuario)
+    
+    os.makedirs("uploads", exist_ok=True)
+    app.router.add_static("/uploads", "uploads")
     
     port = int(os.getenv("PORT", 8080))
     runner = web.AppRunner(app)
@@ -358,6 +392,34 @@ def _peso(n):
 def _embed_estado(validado: bool):
     return ("⏳ Pendiente de aprobación", discord.Color.orange()) if not validado else \
            ("✅ Aprobado", discord.Color.green())
+
+
+async def descargar_imagen_local(url: str) -> str:
+    """Descarga una imagen de una URL y la guarda en la carpeta local uploads/ con un nombre único."""
+    if not url:
+        return None
+    try:
+        ext = "png"
+        path_without_params = url.split("?")[0]
+        if "." in path_without_params:
+            possible_ext = path_without_params.split(".")[-1].lower()
+            if possible_ext in ["png", "jpg", "jpeg", "webp", "gif"]:
+                ext = possible_ext
+
+        os.makedirs("uploads", exist_ok=True)
+        filename = f"{uuid.uuid4()}.{ext}"
+        filepath = os.path.join("uploads", filename)
+
+        async with aiohttp.ClientSession() as session:
+            async with session.get(url) as resp:
+                if resp.status == 200:
+                    data = await resp.read()
+                    with open(filepath, "wb") as f:
+                        f.write(data)
+                    return f"/uploads/{filename}"
+    except Exception as e:
+        print(f"Error al descargar imagen de Discord: {e}")
+    return None
 
 
 SECCION_CHOICES = [app_commands.Choice(name=v["nombre_visible"], value=k) for k, v in config.SECCIONES.items()]
@@ -494,10 +556,12 @@ class ServicioModal(discord.ui.Modal):
             return m.channel.id == interaction.channel.id and m.author.id == interaction.user.id
 
         foto_url = None
+        foto_url_db = None
         try:
             msg = await bot.wait_for('message', check=check, timeout=60.0)
             if msg.attachments:
                 foto_url = msg.attachments[0].url
+                foto_url_db = await descargar_imagen_local(foto_url)
                 try:
                     await msg.delete()
                 except Exception:
@@ -525,7 +589,7 @@ class ServicioModal(discord.ui.Modal):
             monto,
             comision,
             nota,
-            foto_url,
+            foto_url_db,
             validado=auto_validado
         )
 
@@ -860,10 +924,11 @@ async def registrar_servicio(interaction: discord.Interaction, seccion: app_comm
     info_seccion = config.SECCIONES[seccion_key]
     comision = round(monto * info_seccion["comision_servicio"], 2)
     foto_url = foto.url if foto else None
+    foto_url_db = await descargar_imagen_local(foto_url) if foto_url else None
     auto_validado = 0 if config.REQUIERE_APROBACION else 1
 
     registro_id = await db.registrar_servicio(str(interaction.user.id), interaction.user.display_name, seccion_key,
-                                                servicio, monto, comision, nota, foto_url, validado=auto_validado)
+                                                servicio, monto, comision, nota, foto_url_db, validado=auto_validado)
 
     estado_txt, color = _embed_estado(bool(auto_validado))
     embed = discord.Embed(title="🧾 Servicio registrado",

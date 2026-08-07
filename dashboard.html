@@ -270,6 +270,78 @@
     margin-bottom: 12px;
     text-align: left;
   }
+
+  /* MODAL ESTILOS PREMIUM */
+  .modal-backdrop {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    background: rgba(0, 0, 0, 0.6);
+    backdrop-filter: blur(10px);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 2000;
+    transition: opacity 0.25s ease;
+  }
+  .modal-content {
+    width: 90%;
+    max-width: 800px;
+    max-height: 85vh;
+    overflow-y: auto;
+    background: var(--surface-1);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    box-shadow: 0 20px 40px rgba(0,0,0,0.3);
+    padding: 24px;
+    animation: scaleUp 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+  }
+  @keyframes scaleUp {
+    from { transform: scale(0.95); opacity: 0; }
+    to { transform: scale(1); opacity: 1; }
+  }
+  .modal-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 20px;
+    border-bottom: 1px solid var(--border);
+    padding-bottom: 12px;
+  }
+  .modal-header h2 {
+    font-size: 20px;
+    margin: 0;
+    font-weight: 700;
+  }
+  .close-btn {
+    background: none;
+    border: none;
+    color: var(--text-secondary);
+    font-size: 28px;
+    cursor: pointer;
+    line-height: 1;
+    transition: color 0.15s ease;
+  }
+  .close-btn:hover {
+    color: var(--text-primary);
+  }
+  .thumbnail-img {
+    width: 60px;
+    height: 60px;
+    object-fit: cover;
+    border-radius: 6px;
+    border: 1px solid var(--border);
+    cursor: pointer;
+    transition: transform 0.2s ease;
+  }
+  .thumbnail-img:hover {
+    transform: scale(1.1);
+  }
+  .hidden {
+    display: none !important;
+  }
 </style>
 </head>
 <body>
@@ -455,6 +527,33 @@
       </div>
     </div>
 
+  </div>
+</div>
+
+<!-- Modal Detalle de Registros -->
+<div id="detailsModal" class="modal-backdrop hidden" onclick="handleBackdropClick(event)">
+  <div class="modal-content card">
+    <div class="modal-header">
+      <h2 id="modalTitle">Detalle de Registros</h2>
+      <button class="close-btn" onclick="cerrarDetallesModal()">&times;</button>
+    </div>
+    <div class="modal-body" style="overflow-x: auto;">
+      <table style="width: 100%; border-collapse: collapse; margin-top: 10px;">
+        <thead>
+          <tr style="border-bottom: 2px solid var(--border); text-align: left;">
+            <th style="padding: 10px 8px; color: var(--text-secondary); font-size: 12px; text-transform: uppercase;">Tipo</th>
+            <th style="padding: 10px 8px; color: var(--text-secondary); font-size: 12px; text-transform: uppercase;">Descripción</th>
+            <th style="padding: 10px 8px; color: var(--text-secondary); font-size: 12px; text-transform: uppercase;" class="num">Monto / Horas</th>
+            <th style="padding: 10px 8px; color: var(--text-secondary); font-size: 12px; text-transform: uppercase;" class="num">Comisión / Pago</th>
+            <th style="padding: 10px 8px; color: var(--text-secondary); font-size: 12px; text-transform: uppercase;">Nota</th>
+            <th style="padding: 10px 8px; color: var(--text-secondary); font-size: 12px; text-transform: uppercase; text-align: center;">Captura</th>
+          </tr>
+        </thead>
+        <tbody id="detailsTableBody">
+          <!-- Rellenado dinámicamente -->
+        </tbody>
+      </table>
+    </div>
   </div>
 </div>
 
@@ -661,8 +760,8 @@ function render() {
     const total = regs.reduce((s, r) => s + r.total, 0);
     const filas = regs.length
       ? regs.map(r => `
-          <tr>
-            <td class="name">${r.nombre}</td>
+          <tr onclick="verDetallesTrabajador('${key}', '${r.nombre}')" style="cursor: pointer;" title="Haz clic para ver registros individuales">
+            <td class="name" style="text-decoration: underline; font-weight: 600; color: var(--text-primary);">${r.nombre}</td>
             <td class="num">${r.horas} h</td>
             <td class="num">${fmtCLP(r.pagoHours || r.pagoHoras)}</td>
             <td class="num">${r.nServicios}</td>
@@ -944,6 +1043,74 @@ document.getElementById("themeToggle").addEventListener("click", () => {
 
 if (document.getElementById("searchInput")) {
   document.getElementById("searchInput").addEventListener("input", render);
+}
+
+async function verDetallesTrabajador(seccionKey, nombreTrabajador) {
+  if (window.location.protocol === "file:") {
+    alert("El desglose detallado e imágenes de respaldo solo están disponibles cuando usas el bot en vivo en el servidor web, no en el archivo CSV local.");
+    return;
+  }
+  
+  const titleEl = document.getElementById("modalTitle");
+  const tbody = document.getElementById("detailsTableBody");
+  const modal = document.getElementById("detailsModal");
+  
+  titleEl.textContent = `Registros de ${nombreTrabajador} (${SECCIONES[seccionKey].label})`;
+  tbody.innerHTML = '<tr><td colspan="6" style="text-align:center; padding:20px;">Cargando detalles...</td></tr>';
+  modal.classList.remove("hidden");
+  
+  try {
+    const res = await fetch(`/api/detalles/${seccionKey}/${nombreTrabajador}`);
+    if (!res.ok) throw new Error("No se pudo obtener el detalle");
+    const registros = await res.json();
+    
+    if (registros.length === 0) {
+      tbody.innerHTML = '<tr><td colspan="6" style="text-align:center; padding:20px; color:var(--text-muted);">No hay registros aprobados para este trabajador esta semana.</td></tr>';
+      return;
+    }
+    
+    tbody.innerHTML = registros.map(r => {
+      const isServicio = r.tipo === "servicio";
+      const tipoBadge = isServicio 
+        ? '<span style="background:var(--series-mecanica); color:white; padding:2px 6px; border-radius:4px; font-size:11px; font-weight:600;">SERVICIO</span>'
+        : '<span style="background:var(--series-bar); color:white; padding:2px 6px; border-radius:4px; font-size:11px; font-weight:600;">TURNO</span>';
+      
+      const descripcion = isServicio ? r.servicio_nombre : "Horas trabajadas";
+      const montoHoras = isServicio ? fmtCLP(r.monto) : `${r.horas} h`;
+      const comisionPago = isServicio ? fmtCLP(r.comision) : fmtCLP(r.horas * (SECCIONES[seccionKey].tarifa_hora || 0));
+      const nota = r.nota || '<span style="color:var(--text-muted); font-style:italic;">Sin nota</span>';
+      
+      let captura = '<span style="color:var(--text-muted); font-style:italic;">No requiere</span>';
+      if (r.foto_url) {
+        const fullUrl = r.foto_url.startsWith("http") ? r.foto_url : window.location.origin + r.foto_url;
+        captura = `<img src="${fullUrl}" class="thumbnail-img" onclick="window.open('${fullUrl}', '_blank')" title="Hacer clic para ampliar">`;
+      }
+      
+      return `
+        <tr style="border-bottom:1px solid var(--border);">
+          <td style="padding:10px 8px;">${tipoBadge}</td>
+          <td style="padding:10px 8px; font-weight:600;">${descripcion}</td>
+          <td style="padding:10px 8px;" class="num">${montoHoras}</td>
+          <td style="padding:10px 8px;" class="num">${comisionPago}</td>
+          <td style="padding:10px 8px; font-size:13px; max-width:200px; word-wrap:break-word;">${nota}</td>
+          <td style="padding:10px 8px; text-align:center;">${captura}</td>
+        </tr>
+      `;
+    }).join("");
+    
+  } catch (err) {
+    tbody.innerHTML = `<tr><td colspan="6" style="text-align:center; padding:20px; color:#e53e3e;">Error al cargar: ${err.message}</td></tr>`;
+  }
+}
+
+function cerrarDetallesModal() {
+  document.getElementById("detailsModal").classList.add("hidden");
+}
+
+function handleBackdropClick(e) {
+  if (e.target.id === "detailsModal") {
+    cerrarDetallesModal();
+  }
 }
 
 // Intentar cargar datos reales del servidor web al iniciar
