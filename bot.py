@@ -311,6 +311,8 @@ def es_trabajador(member: discord.Member):
 
 
 def es_liderazgo(member: discord.Member):
+    if isinstance(config.ROL_LIDERAZGO, (list, tuple, set)):
+        return any(r.name in config.ROL_LIDERAZGO for r in member.roles)
     return any(r.name == config.ROL_LIDERAZGO for r in member.roles)
 
 
@@ -318,6 +320,8 @@ def es_jefe_de(member: discord.Member, seccion_key: str):
     if es_liderazgo(member):
         return True
     rol_jefe = config.SECCIONES[seccion_key]["rol_jefe"]
+    if isinstance(rol_jefe, (list, tuple, set)):
+        return any(r.name in rol_jefe for r in member.roles)
     return any(r.name == rol_jefe for r in member.roles)
 
 
@@ -329,7 +333,15 @@ def secciones_de_jefe(member: discord.Member):
     if es_liderazgo(member):
         return list(config.SECCIONES.keys())
     nombres_roles = {r.name for r in member.roles}
-    return [k for k, v in config.SECCIONES.items() if v["rol_jefe"] in nombres_roles]
+    resultado = []
+    for k, v in config.SECCIONES.items():
+        rj = v["rol_jefe"]
+        if isinstance(rj, (list, tuple, set)):
+            if any(r in nombres_roles for r in rj):
+                resultado.append(k)
+        elif rj in nombres_roles:
+            resultado.append(k)
+    return resultado
 
 
 def _hora_cierre():
@@ -781,12 +793,12 @@ async def on_raw_reaction_add(payload: discord.RawReactionActionEvent):
                    description="(Jefes/Liderazgo) Crea el canal personal de bitácora de un trabajador")
 @app_commands.describe(trabajador="La persona para la que se crea el canal")
 async def crear_canal_trabajador(interaction: discord.Interaction, trabajador: discord.Member):
+    await interaction.response.defer(ephemeral=True)
     if not es_algun_jefe(interaction.user):
-        await interaction.response.send_message("Solo un jefe de área o Liderazgo puede crear canales.",
-                                                  ephemeral=True)
+        await interaction.followup.send("Solo un jefe de área o Liderazgo puede crear canales.", ephemeral=True)
         return
     if not es_trabajador(trabajador):
-        await interaction.response.send_message(
+        await interaction.followup.send(
             f"{trabajador.display_name} todavía no tiene ningún rol de trabajador. Asígnaselo primero.",
             ephemeral=True)
         return
@@ -795,13 +807,13 @@ async def crear_canal_trabajador(interaction: discord.Interaction, trabajador: d
     if existente:
         canal_existente = interaction.guild.get_channel(int(existente["canal_id"]))
         if canal_existente:
-            await interaction.response.send_message(
+            await interaction.followup.send(
                 f"{trabajador.display_name} ya tiene su canal: {canal_existente.mention}", ephemeral=True)
             return
 
     categoria = discord.utils.get(interaction.guild.categories, name=config.CATEGORIA_BITACORAS)
     if not categoria:
-        await interaction.response.send_message(
+        await interaction.followup.send(
             f'No encontré la categoría "{config.CATEGORIA_BITACORAS}". Créala primero en Discord con ese nombre '
             "exacto (Ajustes del servidor -> Canales -> Crear categoría).", ephemeral=True)
         return
@@ -812,7 +824,20 @@ async def crear_canal_trabajador(interaction: discord.Interaction, trabajador: d
         interaction.guild.me: discord.PermissionOverwrite(view_channel=True, send_messages=True,
                                                             manage_messages=True),
     }
-    for rname in [s["rol_jefe"] for s in config.SECCIONES.values()] + [config.ROL_LIDERAZGO]:
+    roles_permiso = []
+    for s in config.SECCIONES.values():
+        rj = s["rol_jefe"]
+        if isinstance(rj, (list, tuple, set)):
+            roles_permiso.extend(rj)
+        else:
+            roles_permiso.append(rj)
+
+    if isinstance(config.ROL_LIDERAZGO, (list, tuple, set)):
+        roles_permiso.extend(config.ROL_LIDERAZGO)
+    else:
+        roles_permiso.append(config.ROL_LIDERAZGO)
+
+    for rname in set(roles_permiso):
         rol = discord.utils.get(interaction.guild.roles, name=rname)
         if rol:
             overwrites[rol] = discord.PermissionOverwrite(view_channel=True, send_messages=True, add_reactions=True)
@@ -843,7 +868,7 @@ async def crear_canal_trabajador(interaction: discord.Interaction, trabajador: d
         text=f"Todos los domingos a las {config.HORA_CIERRE_SEMANA} se calcula tu pago automáticamente.")
     await canal.send(content=trabajador.mention, embed=bienvenida, view=PanelControlView())
 
-    await interaction.response.send_message(f"✅ Canal creado: {canal.mention}", ephemeral=True)
+    await interaction.followup.send(f"✅ Canal creado: {canal.mention}", ephemeral=True)
 
 
 # ---------- Comandos: trabajador ----------

@@ -34,37 +34,48 @@ de tu servidor.
 SECCIONES = {
     "mecanica": {
         "nombre_visible": "🔧 Mecánica",
-        "rol_jefe": "Jefe Mecánica",
+        "rol_jefe": "Jefe de Mecánico",
         "tarifa_hora": 150,
         "comision_servicio": 0.30,
     },
     "bar": {
         "nombre_visible": "🍺 Bar / Comida",
-        "rol_jefe": "Jefe Bar",
+        "rol_jefe": "Jefe de Barra",
         "tarifa_hora": 120,
         "comision_servicio": 0.20,
     },
     "tatuajes": {
         "nombre_visible": "🖋️ Tatuajes",
-        "rol_jefe": "Jefe Tatuajes",
+        "rol_jefe": "Jefe Tatuador",
         "tarifa_hora": 100,
         "comision_servicio": 0.40,
     },
     "show": {
         "nombre_visible": "💃 Bailarinas / Show",
-        "rol_jefe": "Jefe Show",
+        "rol_jefe": "Jefa de Bailarinas",
         "tarifa_hora": 100,
         "comision_servicio": 0.35,
     },
 }
 
 # Roles de TRABAJADOR habilitados para tener canal personal y registrar.
-ROLES_TRABAJADOR = ["Mecánico", "Bartender", "Tatuador", "Bailarina", "Prospecto"]
+ROLES_TRABAJADOR = [
+    "Mecánico Experto",
+    "Mecánico Intermedio",
+    "Mecánico Practicante",
+    "Jefe de Mecánico",
+    "Tatuador",
+    "Jefe Tatuador",
+    "Bartender",
+    "Jefe de Barra",
+    "Bailarina",
+    "Bailarín",
+    "Jefa de Bailarinas",
+]
 
-# Rol de liderazgo total (tú + tu pareja): ve y aprueba TODAS las áreas y la
-# nómina completa del club. Cambia el nombre por el que prefieras -- debe
-# coincidir exacto con el rol de Discord.
-ROL_LIDERAZGO = "Liderazgo SAMCRO"
+# Roles de liderazgo total (ven y aprueban TODAS las áreas y la nómina completa del club).
+ROLES_LIDERAZGO = ["Dueños", "Sub Dueño", "Jefe de local"]
+ROL_LIDERAZGO = ROLES_LIDERAZGO
 
 # Nombre EXACTO de la categoría donde el bot va a crear los canales
 # personales de cada trabajador. Créala tú primero en Discord (puede estar
