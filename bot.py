@@ -59,6 +59,7 @@ GUILD_ID = os.getenv("GUILD_ID")
 intents = discord.Intents.default()
 intents.members = True
 intents.reactions = True
+intents.message_content = True
 
 bot = commands.Bot(command_prefix="!samcro-", intents=intents)
 
