@@ -195,34 +195,56 @@
 
   /* Login Screen Styles */
   .login-container {
-    max-width: 400px;
-    margin: 80px auto;
-    padding: 0 20px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    min-height: 80vh;
+    padding: 20px;
   }
   .login-card {
     background: var(--surface-1);
     border: 1px solid var(--border);
-    border-radius: 16px;
-    padding: 30px 24px;
-    box-shadow: 0 10px 30px rgba(0,0,0,0.08);
+    border-radius: 20px;
+    padding: 40px 32px;
+    box-shadow: 0 15px 35px rgba(0, 0, 0, 0.25);
     text-align: center;
+    width: 100%;
+    max-width: 420px;
+    transition: transform 0.3s ease, box-shadow 0.3s ease;
+    backdrop-filter: blur(10px);
+  }
+  .login-card:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 20px 45px rgba(0, 0, 0, 0.35);
+  }
+  .login-logo {
+    width: 150px;
+    height: auto;
+    margin-bottom: 24px;
+    filter: drop-shadow(0 4px 8px rgba(0,0,0,0.5));
+    transition: transform 0.3s ease;
+  }
+  .login-logo:hover {
+    transform: rotate(5deg) scale(1.05);
   }
   .login-card h2 {
-    font-size: 13px;
+    font-size: 11px;
     text-transform: uppercase;
-    letter-spacing: 4px;
+    letter-spacing: 5px;
     color: var(--text-secondary);
-    margin-bottom: 6px;
+    margin-bottom: 8px;
+    font-weight: 700;
   }
   .login-card h1 {
-    font-size: 26px;
-    font-weight: 750;
-    margin: 0 0 8px;
+    font-size: 24px;
+    font-weight: 800;
+    margin: 0 0 10px;
+    color: var(--text-primary);
   }
   .login-card p {
     font-size: 13px;
     color: var(--text-muted);
-    margin-bottom: 24px;
+    margin-bottom: 30px;
   }
   .input-group {
     text-align: left;
@@ -251,18 +273,24 @@
   }
   .login-btn {
     width: 100%;
-    padding: 11px;
-    background: var(--text-primary);
-    color: var(--surface-1);
+    background: #e6b00f; /* Un color oro/amarillo motero clásico de SAMCRO */
+    color: #121212;
     border: none;
-    border-radius: 8px;
-    font-weight: 600;
+    padding: 12px;
+    font-weight: 750;
     font-size: 14px;
+    border-radius: 10px;
     cursor: pointer;
-    transition: opacity 0.15s ease;
+    transition: background 0.2s ease, transform 0.1s ease, box-shadow 0.2s ease;
+    box-shadow: 0 4px 15px rgba(230, 176, 15, 0.3);
   }
   .login-btn:hover {
-    opacity: 0.9;
+    background: #f7c325;
+    transform: translateY(-1px);
+    box-shadow: 0 6px 20px rgba(230, 176, 15, 0.45);
+  }
+  .login-btn:active {
+    transform: translateY(1px);
   }
   .error-message {
     color: #e53e3e;
@@ -351,6 +379,7 @@
     <!-- LOGIN VIEW -->
     <div id="loginView" class="login-container hidden">
       <div class="login-card">
+        <img class="login-logo" src="/logo/Sons-of-Anarchy-Logo.png" alt="Sons of Anarchy Logo">
         <h2>SAMCRO MC</h2>
         <h1>Acceso al Portal</h1>
         <p>Introduce tus credenciales para continuar</p>
