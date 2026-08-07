@@ -241,7 +241,7 @@ async def handle_eliminar_usuario(request):
 async def auth_middleware(app, handler):
     async def middleware(request):
         public_paths = ["/", "/api/login", "/api/logout"]
-        if request.path in public_paths:
+        if request.path in public_paths or request.path.startswith("/logo/"):
             return await handler(request)
             
         session_id = request.cookies.get("session_id")
