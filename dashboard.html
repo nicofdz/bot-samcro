@@ -1,9 +1,10 @@
 <!DOCTYPE html>
-<html lang="es">
+<html lang="es" data-theme="dark">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>SAMCRO MC — Dashboard de Nómina</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 <style>
   .viz-root {
     color-scheme: light;
@@ -402,8 +403,8 @@
     <!-- LOBBY VIEW (MENU DE ENTRADA) -->
     <div id="lobbyView" class="lobby-container hidden">
       <div style="display: flex; justify-content: flex-end; gap: 10px; margin-bottom: 24px;">
-        <button class="btn" id="adminBtn" onclick="irAAdmin()" type="button" style="display: none; align-items: center; gap: 6px;">⚙️ Usuarios</button>
-        <button class="btn" onclick="handleLogout()" type="button" style="align-items: center; gap: 6px;">🚪 Cerrar Sesión</button>
+        <button class="btn" id="adminBtn" onclick="irAAdmin()" type="button" style="display: none; align-items: center; gap: 6px;"><i class="fa-solid fa-gears"></i> Usuarios</button>
+        <button class="btn" onclick="handleLogout()" type="button" style="align-items: center; gap: 6px;"><i class="fa-solid fa-right-from-bracket"></i> Cerrar Sesión</button>
       </div>
       <h2>SAMCRO MC</h2>
       <h1>Portal de Nóminas</h1>
@@ -411,27 +412,27 @@
       
       <div class="lobby-grid">
         <div class="lobby-card" data-seccion="mecanica" onclick="seleccionarSeccion('mecanica')">
-          <div class="lobby-icon">🔧</div>
+          <div class="lobby-icon"><i class="fa-solid fa-wrench"></i></div>
           <h3>Mecánica</h3>
           <span class="lobby-desc">Nómina de mecánicos y comisiones de reparaciones</span>
         </div>
         <div class="lobby-card" data-seccion="bar" onclick="seleccionarSeccion('bar')">
-          <div class="lobby-icon">🍺</div>
+          <div class="lobby-icon"><i class="fa-solid fa-beer-mug-empty"></i></div>
           <h3>Bar / Comida</h3>
           <span class="lobby-desc">Nómina de bartenders y comisiones de venta</span>
         </div>
         <div class="lobby-card" data-seccion="tatuajes" onclick="seleccionarSeccion('tatuajes')">
-          <div class="lobby-icon">🖋️</div>
+          <div class="lobby-icon"><i class="fa-solid fa-pen-nib"></i></div>
           <h3>Tatuajes</h3>
           <span class="lobby-desc">Nómina de tatuadores y comisiones de diseños</span>
         </div>
         <div class="lobby-card" data-seccion="show" onclick="seleccionarSeccion('show')">
-          <div class="lobby-icon">💃</div>
+          <div class="lobby-icon"><i class="fa-solid fa-star"></i></div>
           <h3>Bailarinas / Show</h3>
           <span class="lobby-desc">Nómina de bailarinas y comisiones de shows</span>
         </div>
         <div class="lobby-card club-card" data-seccion="consolidado" onclick="seleccionarSeccion('consolidado')">
-          <div class="lobby-icon">🏍️</div>
+          <div class="lobby-icon"><i class="fa-solid fa-motorcycle"></i></div>
           <h3>Club Completo</h3>
           <span class="lobby-desc">Resumen general consolidado de todas las áreas</span>
         </div>
@@ -442,10 +443,10 @@
     <div id="dashboardWrapper" class="hidden">
       <header>
         <div class="header-left">
-          <button class="back-btn" onclick="volverAlMenu()" type="button">⬅️ Volver</button>
+          <button class="back-btn" onclick="volverAlMenu()" type="button"><i class="fa-solid fa-arrow-left"></i> Volver</button>
           <h1 id="dashboardTitle">SAMCRO MC — Nómina semanal</h1>
         </div>
-        <button class="theme-toggle" id="themeToggle" type="button">🌙 Modo oscuro</button>
+        <button class="theme-toggle" id="themeToggle" type="button"><i class="fa-solid fa-sun"></i> Modo claro</button>
       </header>
 
       <div class="upload" id="uploadZone">
@@ -461,7 +462,7 @@
 
       <div id="dashboard" class="hidden">
         <div class="card filter-card" style="margin-bottom: 16px;">
-          <input type="text" id="searchInput" placeholder="🔍 Buscar trabajador por nombre..." style="width: 100%; padding: 12px 14px; border: 1px solid var(--border); background: var(--surface-1); color: var(--text-primary); border-radius: 8px; font-size: 13px; outline: none;">
+          <input type="text" id="searchInput" placeholder="Buscar trabajador por nombre..." style="width: 100%; padding: 12px 14px; border: 1px solid var(--border); background: var(--surface-1); color: var(--text-primary); border-radius: 8px; font-size: 13px; outline: none;">
         </div>
 
         <div class="kpis" id="kpis"></div>
@@ -484,7 +485,7 @@
     <div id="adminView" class="hidden">
       <header>
         <div class="header-left">
-          <button class="back-btn" onclick="volverDeAdmin()" type="button">⬅️ Volver</button>
+          <button class="back-btn" onclick="volverDeAdmin()" type="button"><i class="fa-solid fa-arrow-left"></i> Volver</button>
           <h1>Administración de Usuarios</h1>
         </div>
       </header>
@@ -533,19 +534,19 @@
               <label style="display:block; margin-bottom:6px;">Permisos de Acceso</label>
               <div style="display: flex; flex-direction: column; gap: 8px; margin-top: 6px; font-size: 13px;">
                 <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
-                  <input type="checkbox" value="consolidado" class="permiso-checkbox"> 🏍️ Club Completo (Consolidado)
+                  <input type="checkbox" value="consolidado" class="permiso-checkbox"> <i class="fa-solid fa-motorcycle"></i> Club Completo (Consolidado)
                 </label>
                 <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
-                  <input type="checkbox" value="mecanica" class="permiso-checkbox"> 🔧 Mecánica
+                  <input type="checkbox" value="mecanica" class="permiso-checkbox"> <i class="fa-solid fa-wrench"></i> Mecánica
                 </label>
                 <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
-                  <input type="checkbox" value="bar" class="permiso-checkbox"> 🍺 Bar / Comida
+                  <input type="checkbox" value="bar" class="permiso-checkbox"> <i class="fa-solid fa-beer-mug-empty"></i> Bar / Comida
                 </label>
                 <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
-                  <input type="checkbox" value="tatuajes" class="permiso-checkbox"> 🖋️ Tatuajes
+                  <input type="checkbox" value="tatuajes" class="permiso-checkbox"> <i class="fa-solid fa-pen-nib"></i> Tatuajes
                 </label>
                 <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
-                  <input type="checkbox" value="show" class="permiso-checkbox"> 💃 Bailarinas / Show
+                  <input type="checkbox" value="show" class="permiso-checkbox"> <i class="fa-solid fa-star"></i> Bailarinas / Show
                 </label>
               </div>
             </div>
@@ -588,10 +589,10 @@
 
 <script>
 const SECCIONES = {
-  mecanica:  { label: "🔧 Mecánica",         varColor: "--series-mecanica" },
-  bar:       { label: "🍺 Bar / Comida",     varColor: "--series-bar" },
-  tatuajes:  { label: "🖋️ Tatuajes",         varColor: "--series-tatuajes" },
-  show:      { label: "💃 Bailarinas / Show", varColor: "--series-show" },
+  mecanica:  { label: '<i class="fa-solid fa-wrench"></i> Mecánica',         varColor: "--series-mecanica" },
+  bar:       { label: '<i class="fa-solid fa-beer-mug-empty"></i> Bar / Comida',     varColor: "--series-bar" },
+  tatuajes:  { label: '<i class="fa-solid fa-pen-nib"></i> Tatuajes',         varColor: "--series-tatuajes" },
+  show:      { label: '<i class="fa-solid fa-star"></i> Bailarinas / Show', varColor: "--series-show" },
 };
 const ORDEN_SECCIONES = ["mecanica", "bar", "tatuajes", "show"];
 
@@ -1066,7 +1067,9 @@ document.getElementById("themeToggle").addEventListener("click", () => {
   const root = document.documentElement;
   const isDark = root.getAttribute("data-theme") === "dark";
   root.setAttribute("data-theme", isDark ? "light" : "dark");
-  document.getElementById("themeToggle").textContent = isDark ? "🌙 Modo oscuro" : "☀️ Modo claro";
+  document.getElementById("themeToggle").innerHTML = isDark 
+    ? '<i class="fa-solid fa-moon"></i> Modo oscuro' 
+    : '<i class="fa-solid fa-sun"></i> Modo claro';
   if (Object.keys(dataPorSeccion).length) render();
 });
 
@@ -1084,7 +1087,7 @@ async function verDetallesTrabajador(seccionKey, nombreTrabajador) {
   const tbody = document.getElementById("detailsTableBody");
   const modal = document.getElementById("detailsModal");
   
-  titleEl.textContent = `Registros de ${nombreTrabajador} (${SECCIONES[seccionKey].label})`;
+  titleEl.innerHTML = `Registros de ${nombreTrabajador} (${SECCIONES[seccionKey].label})`;
   tbody.innerHTML = '<tr><td colspan="6" style="text-align:center; padding:20px;">Cargando detalles...</td></tr>';
   modal.classList.remove("hidden");
   
