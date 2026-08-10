@@ -2,10 +2,14 @@
 Capa de datos del bot SAMCRO. Usa SQLite (un solo archivo, samcro.db) así
 que no necesitas montar un servidor de base de datos aparte.
 """
-import aiosqlite
+import os
 from datetime import datetime
+import aiosqlite
 
-DB_PATH = "samcro.db"
+DB_PATH = os.getenv("DB_PATH", "samcro.db")
+_db_dir = os.path.dirname(os.path.abspath(DB_PATH))
+if _db_dir:
+    os.makedirs(_db_dir, exist_ok=True)
 
 SCHEMA = """
 CREATE TABLE IF NOT EXISTS registros (
