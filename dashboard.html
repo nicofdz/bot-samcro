@@ -300,6 +300,82 @@
     text-align: left;
   }
 
+  /* ADMIN VIEW REDESIGN */
+  .permisos-grid {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    margin-top: 6px;
+  }
+  .permiso-option {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 14px;
+    background: var(--page);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    cursor: pointer;
+    font-size: 13px;
+    transition: all 0.2s ease;
+    user-select: none;
+    color: var(--text-primary);
+  }
+  .permiso-option:hover {
+    border-color: #e6b00f;
+    background: var(--surface-1);
+  }
+  .permiso-option input[type="checkbox"] {
+    width: 16px;
+    height: 16px;
+    accent-color: #e6b00f;
+    cursor: pointer;
+    margin: 0;
+  }
+  .permiso-option i {
+    width: 18px;
+    text-align: center;
+    font-size: 14px;
+  }
+  .permiso-tag {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    padding: 4px 8px;
+    border-radius: 6px;
+    font-size: 11px;
+    font-weight: 500;
+    margin: 2px 4px 2px 0;
+    white-space: nowrap;
+  }
+  .permiso-tag.consolidado { background: rgba(230, 176, 15, 0.15); color: #e6b00f; border: 1px solid rgba(230, 176, 15, 0.3); }
+  .permiso-tag.mecanica { background: rgba(42, 120, 214, 0.15); color: #4da0ff; border: 1px solid rgba(42, 120, 214, 0.3); }
+  .permiso-tag.bar { background: rgba(235, 104, 52, 0.15); color: #ff8552; border: 1px solid rgba(235, 104, 52, 0.3); }
+  .permiso-tag.tatuajes { background: rgba(27, 175, 122, 0.15); color: #2cd499; border: 1px solid rgba(27, 175, 122, 0.3); }
+  .permiso-tag.show { background: rgba(237, 161, 0, 0.15); color: #ffbe3b; border: 1px solid rgba(237, 161, 0, 0.3); }
+
+  .role-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 4px 8px;
+    border-radius: 6px;
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.5px;
+    text-transform: uppercase;
+  }
+  .role-badge.superadmin {
+    background: linear-gradient(135deg, #e6b00f 0%, #b8860b 100%);
+    color: #0c0c0b;
+    box-shadow: 0 2px 6px rgba(230, 176, 15, 0.25);
+  }
+  .role-badge.jefe {
+    background: var(--grid);
+    color: var(--text-secondary);
+    border: 1px solid var(--border);
+  }
+
   /* MODAL ESTILOS PREMIUM */
   .modal-backdrop {
     position: fixed;
@@ -486,22 +562,27 @@
       <header>
         <div class="header-left">
           <button class="back-btn" onclick="volverDeAdmin()" type="button"><i class="fa-solid fa-arrow-left"></i> Volver</button>
-          <h1>Administración de Usuarios</h1>
+          <div>
+            <h1 style="font-size: 24px; font-weight: 800;">Administración de Usuarios</h1>
+            <span style="color: var(--text-secondary); font-size: 13px;">Gestiona las cuentas y accesos al panel web</span>
+          </div>
         </div>
       </header>
 
-      <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 20px; margin-top: 20px;">
+      <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(360px, 1fr)); gap: 24px; margin-top: 24px;">
         <!-- Lista de usuarios -->
-        <div class="card">
-          <h2>Usuarios Existentes</h2>
+        <div class="card" style="padding: 24px;">
+          <h2 style="font-size: 16px; margin: 0 0 16px; font-weight: 700; display: flex; align-items: center; gap: 8px;">
+            <i class="fa-solid fa-users" style="color: #e6b00f;"></i> Usuarios Existentes
+          </h2>
           <div style="overflow-x: auto;">
             <table style="width: 100%; border-collapse: collapse;">
               <thead>
-                <tr>
-                  <th>Usuario</th>
-                  <th>Rol</th>
-                  <th>Permisos</th>
-                  <th class="num">Acción</th>
+                <tr style="border-bottom: 2px solid var(--border);">
+                  <th style="padding: 10px 8px; color: var(--text-secondary); font-size: 11px; text-transform: uppercase;">Usuario</th>
+                  <th style="padding: 10px 8px; color: var(--text-secondary); font-size: 11px; text-transform: uppercase;">Rol</th>
+                  <th style="padding: 10px 8px; color: var(--text-secondary); font-size: 11px; text-transform: uppercase;">Permisos</th>
+                  <th style="padding: 10px 8px; color: var(--text-secondary); font-size: 11px; text-transform: uppercase;" class="num">Acción</th>
                 </tr>
               </thead>
               <tbody id="usuariosTableBody">
@@ -512,46 +593,60 @@
         </div>
 
         <!-- Formulario Crear Usuario -->
-        <div class="card">
-          <h2>Crear Nuevo Usuario</h2>
+        <div class="card" style="padding: 24px;">
+          <h2 style="font-size: 16px; margin: 0 0 16px; font-weight: 700; display: flex; align-items: center; gap: 8px;">
+            <i class="fa-solid fa-user-plus" style="color: #e6b00f;"></i> Crear Nuevo Usuario
+          </h2>
           <form id="createUserForm" onsubmit="handleCreateUserSubmit(event)">
-            <div class="input-group" style="margin-bottom: 12px;">
-              <label for="newUsername">Usuario</label>
-              <input type="text" id="newUsername" required placeholder="Nombre de usuario">
+            <div class="input-group" style="margin-bottom: 16px;">
+              <label for="newUsername"><i class="fa-solid fa-user" style="margin-right: 4px;"></i> Nombre de Usuario</label>
+              <input type="text" id="newUsername" required placeholder="Ej: alan_smith">
             </div>
-            <div class="input-group" style="margin-bottom: 12px;">
-              <label for="newPassword">Contraseña</label>
-              <input type="password" id="newPassword" required placeholder="Contraseña temporal">
+            <div class="input-group" style="margin-bottom: 16px;">
+              <label for="newPassword"><i class="fa-solid fa-key" style="margin-right: 4px;"></i> Contraseña</label>
+              <input type="password" id="newPassword" required placeholder="Contraseña segura">
             </div>
-            <div class="input-group" style="margin-bottom: 12px;">
-              <label for="newRol">Rol del Usuario</label>
-              <select id="newRol" style="width: 100%; padding: 8px 12px; border: 1px solid var(--border); background: var(--surface-1); color: var(--text-primary); border-radius: 8px; font-size: 13px;">
+            <div class="input-group" style="margin-bottom: 16px;">
+              <label for="newRol"><i class="fa-solid fa-id-badge" style="margin-right: 4px;"></i> Rol del Usuario</label>
+              <select id="newRol" style="width: 100%; padding: 10px 12px; border: 1px solid var(--border); background: var(--surface-1); color: var(--text-primary); border-radius: 8px; font-size: 13px; outline: none;">
                 <option value="jefe">Encargado de Área (Jefe)</option>
                 <option value="superadmin">Administrador Total (Super Admin)</option>
               </select>
             </div>
-            <div class="input-group" style="margin-bottom: 12px;">
-              <label style="display:block; margin-bottom:6px;">Permisos de Acceso</label>
-              <div style="display: flex; flex-direction: column; gap: 8px; margin-top: 6px; font-size: 13px;">
-                <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
-                  <input type="checkbox" value="consolidado" class="permiso-checkbox"> <i class="fa-solid fa-motorcycle"></i> Club Completo (Consolidado)
+            <div class="input-group" style="margin-bottom: 20px;">
+              <label style="display:block; margin-bottom:8px; font-weight:600;"><i class="fa-solid fa-shield-halved" style="margin-right: 4px;"></i> Permisos de Acceso</label>
+              <div class="permisos-grid">
+                <label class="permiso-option">
+                  <input type="checkbox" value="consolidado" class="permiso-checkbox">
+                  <i class="fa-solid fa-motorcycle" style="color: #e6b00f;"></i>
+                  <span>Club Completo (Consolidado)</span>
                 </label>
-                <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
-                  <input type="checkbox" value="mecanica" class="permiso-checkbox"> <i class="fa-solid fa-wrench"></i> Mecánica
+                <label class="permiso-option">
+                  <input type="checkbox" value="mecanica" class="permiso-checkbox">
+                  <i class="fa-solid fa-wrench" style="color: #4da0ff;"></i>
+                  <span>Mecánica</span>
                 </label>
-                <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
-                  <input type="checkbox" value="bar" class="permiso-checkbox"> <i class="fa-solid fa-beer-mug-empty"></i> Bar / Comida
+                <label class="permiso-option">
+                  <input type="checkbox" value="bar" class="permiso-checkbox">
+                  <i class="fa-solid fa-beer-mug-empty" style="color: #ff8552;"></i>
+                  <span>Bar / Comida</span>
                 </label>
-                <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
-                  <input type="checkbox" value="tatuajes" class="permiso-checkbox"> <i class="fa-solid fa-pen-nib"></i> Tatuajes
+                <label class="permiso-option">
+                  <input type="checkbox" value="tatuajes" class="permiso-checkbox">
+                  <i class="fa-solid fa-pen-nib" style="color: #2cd499;"></i>
+                  <span>Tatuajes</span>
                 </label>
-                <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
-                  <input type="checkbox" value="show" class="permiso-checkbox"> <i class="fa-solid fa-star"></i> Bailarinas / Show
+                <label class="permiso-option">
+                  <input type="checkbox" value="show" class="permiso-checkbox">
+                  <i class="fa-solid fa-star" style="color: #ffbe3b;"></i>
+                  <span>Bailarinas / Show</span>
                 </label>
               </div>
             </div>
-            <div id="createUserError" class="error-message hidden" style="color: red; font-size: 12px; margin-bottom: 10px;"></div>
-            <button type="submit" class="btn" style="width: 100%; background: var(--series-mecanica); color: white; border: none; padding: 10px; font-weight: 600; border-radius:8px;">Crear Usuario</button>
+            <div id="createUserError" class="error-message hidden" style="color: #e53e3e; font-size: 12px; margin-bottom: 12px;"></div>
+            <button type="submit" class="login-btn" style="width: 100%; display: flex; align-items: center; justify-content: center; gap: 8px;">
+              <i class="fa-solid fa-user-plus"></i> Crear Usuario
+            </button>
           </form>
         </div>
       </div>
@@ -983,20 +1078,26 @@ async function cargarUsuariosList() {
     tbody.innerHTML = usuarios.map(u => {
       const isSelf = u.username === usuarioLogueado.username;
       const btnEliminar = isSelf 
-        ? '<span style="color: var(--text-muted);">Actual (tú)</span>'
-        : `<button class="btn" onclick="eliminarUsuario('${u.username}')" style="background:#e53e3e; color:white; border:none; padding:4px 8px; font-size:11px;">Eliminar</button>`;
+        ? '<span style="font-size:12px; color: var(--text-muted);"><i class="fa-solid fa-user-check"></i> Actual (tú)</span>'
+        : `<button class="btn" onclick="eliminarUsuario('${u.username}')" style="background:rgba(229,62,62,0.15); color:#fc8181; border:1px solid rgba(229,62,62,0.3); padding:6px 12px; border-radius:6px; font-size:12px; cursor:pointer; font-weight:600; transition:all 0.2s;"><i class="fa-solid fa-trash-can"></i> Eliminar</button>`;
       
+      const roleBadge = u.rol === "superadmin"
+        ? '<span class="role-badge superadmin"><i class="fa-solid fa-crown"></i> SUPERADMIN</span>'
+        : '<span class="role-badge jefe"><i class="fa-solid fa-user-shield"></i> ENCARGADO</span>';
+
       const permisosList = u.permisos.map(p => {
-        if (p === "consolidado") return "Club Completo";
-        return SECCIONES[p] ? SECCIONES[p].label : p;
-      }).join(", ");
+        if (p === "consolidado") return '<span class="permiso-tag consolidado"><i class="fa-solid fa-motorcycle"></i> Club Completo</span>';
+        const sec = SECCIONES[p];
+        if (sec) return `<span class="permiso-tag ${p}">${sec.label}</span>`;
+        return `<span class="permiso-tag">${p}</span>`;
+      }).join("");
       
       return `
-        <tr>
-          <td><strong>${u.username}</strong></td>
-          <td><span style="font-size:11px; text-transform:uppercase; background:var(--grid); padding:3px 6px; border-radius:4px;">${u.rol}</span></td>
-          <td>${permisosList}</td>
-          <td class="num">${btnEliminar}</td>
+        <tr style="border-bottom: 1px solid var(--border);">
+          <td style="padding:12px 8px; font-weight:700; color:var(--text-primary);"><i class="fa-solid fa-circle-user" style="color:var(--text-secondary); margin-right:6px;"></i> ${u.username}</td>
+          <td style="padding:12px 8px;">${roleBadge}</td>
+          <td style="padding:12px 8px; max-width:250px;">${permisosList}</td>
+          <td style="padding:12px 8px;" class="num">${btnEliminar}</td>
         </tr>
       `;
     }).join("");
