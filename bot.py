@@ -1207,12 +1207,14 @@ async def revisar_cierre_semanal():
     canal_resumen = discord.utils.get(guild.text_channels, name=config.CANAL_RESUMEN_NOMINA)
     if canal_resumen:
         total_club = 0.0
+        secciones_con_datos = 0
         for sk, info_seccion in config.SECCIONES.items():
             resumen = await calcular_nomina(sk, inicio_utc, fin_utc, solo_validados=True)
             if not resumen:
                 continue
             total_seccion = sum(d["total"] for d in resumen.values())
             total_club += total_seccion
+            secciones_con_datos += 1
             embed = discord.Embed(
                 title=f"💰 Cierre semanal — {info_seccion['nombre_visible']}",
                 description=f"Semana {inicio_local.strftime('%d-%m')} al {fin_local.strftime('%d-%m %H:%M')}",
@@ -1221,7 +1223,11 @@ async def revisar_cierre_semanal():
                 embed.add_field(name=datos["nombre"], value=_peso(datos["total"]), inline=True)
             embed.set_footer(text=f"Total {info_seccion['nombre_visible']}: {_peso(total_seccion)}")
             await canal_resumen.send(embed=embed)
-        await canal_resumen.send(f"**🏍️ Total a pagar en todo el club esta semana: {_peso(total_club)}**")
+        
+        if secciones_con_datos > 0:
+            await canal_resumen.send(f"**🏍️ Total a pagar en todo el club esta semana: {_peso(total_club)}**")
+        else:
+            await canal_resumen.send(f"ℹ️ **Cierre semanal ({inicio_local.strftime('%d-%m')} al {fin_local.strftime('%d-%m %H:%M')}):** No hay registros aprobados para esta semana.")
     else:
         print(f'Aviso: no encontré el canal "{config.CANAL_RESUMEN_NOMINA}" para el resumen consolidado.')
 
