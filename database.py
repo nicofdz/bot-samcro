@@ -76,6 +76,14 @@ CREATE TABLE IF NOT EXISTS sesiones (
     username TEXT NOT NULL,
     expira_en TEXT NOT NULL
 );
+
+CREATE TABLE IF NOT EXISTS turnos_activos (
+    discord_id TEXT PRIMARY KEY,
+    nombre TEXT NOT NULL,
+    seccion TEXT NOT NULL,
+    canal_id TEXT NOT NULL,
+    hora_inicio TEXT NOT NULL
+);
 """
 
 PG_SCHEMA = """
@@ -133,6 +141,14 @@ CREATE TABLE IF NOT EXISTS sesiones (
     session_id TEXT PRIMARY KEY,
     username TEXT NOT NULL,
     expira_en TEXT NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS turnos_activos (
+    discord_id TEXT PRIMARY KEY,
+    nombre TEXT NOT NULL,
+    seccion TEXT NOT NULL,
+    canal_id TEXT NOT NULL,
+    hora_inicio TEXT NOT NULL
 );
 """
 
@@ -428,3 +444,30 @@ async def eliminar_sesion(session_id: str):
 
 async def limpiar_sesiones_expiradas():
     await _execute("DELETE FROM sesiones WHERE expira_en <= ?", (datetime.utcnow().isoformat(),))
+
+
+# ---------- Turnos Activos (Entrada / Salida) ----------
+
+async def iniciar_turno(discord_id: str, nombre: str, seccion: str, canal_id: str):
+    activo = await _fetch_one("SELECT * FROM turnos_activos WHERE discord_id = ?", (discord_id,))
+    if activo:
+        return None
+    now_iso = datetime.utcnow().isoformat()
+    await _execute(
+        """INSERT INTO turnos_activos (discord_id, nombre, seccion, canal_id, hora_inicio)
+           VALUES (?, ?, ?, ?, ?)""",
+        (discord_id, nombre, seccion, canal_id, now_iso),
+    )
+    return now_iso
+
+
+async def obtener_turno_activo(discord_id: str):
+    return await _fetch_one("SELECT * FROM turnos_activos WHERE discord_id = ?", (discord_id,))
+
+
+async def finalizar_turno(discord_id: str):
+    activo = await _fetch_one("SELECT * FROM turnos_activos WHERE discord_id = ?", (discord_id,))
+    if not activo:
+        return None
+    await _execute("DELETE FROM turnos_activos WHERE discord_id = ?", (discord_id,))
+    return activo

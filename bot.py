@@ -650,6 +650,46 @@ class ServicioModal(discord.ui.Modal):
             await mensaje.add_reaction("✅")
 
 
+class IniciarTurnoDropdown(discord.ui.Select):
+    def __init__(self):
+        options = [
+            discord.SelectOption(label=v["nombre_visible"], value=k, description=f"Tarifa: {_peso(v['tarifa_hora'])}/h")
+            for k, v in config.SECCIONES.items()
+        ]
+        super().__init__(
+            custom_id="select_iniciar_turno_panel",
+            placeholder="🟢 Iniciar Turno de Trabajo en...",
+            min_values=1,
+            max_values=1,
+            options=options
+        )
+
+    async def callback(self, interaction: discord.Interaction):
+        vinculo = await db.trabajador_de_canal(str(interaction.channel.id))
+        if not vinculo or vinculo["discord_id"] != str(interaction.user.id):
+            await interaction.response.send_message("Este panel solo puede ser usado por el dueño de la bitácora.", ephemeral=True)
+            return
+
+        seccion_key = self.values[0]
+        now_iso = await db.iniciar_turno(str(interaction.user.id), interaction.user.display_name, seccion_key, str(interaction.channel.id))
+        if not now_iso:
+            activo = await db.obtener_turno_activo(str(interaction.user.id))
+            sec_name = config.SECCIONES[activo['seccion']]['nombre_visible'] if activo else "otra área"
+            await interaction.response.send_message(f"⚠️ Ya tienes un turno activo en **{sec_name}**. Debes finalizarlo antes de iniciar otro.", ephemeral=True)
+            return
+
+        dt = datetime.fromisoformat(now_iso).replace(tzinfo=UTC).astimezone(TZ_CLUB)
+        embed = discord.Embed(
+            title="🟢 Turno Iniciado",
+            description=f"**Trabajador:** {interaction.user.display_name}\n"
+                        f"**Área:** {config.SECCIONES[seccion_key]['nombre_visible']}\n"
+                        f"**Hora de Entrada:** {dt.strftime('%H:%M:%S')}",
+            color=discord.Color.green()
+        )
+        embed.set_footer(text="Haz clic en 🔴 Finalizar Turno en el panel al terminar tu jornada.")
+        await interaction.response.send_message(embed=embed)
+
+
 class HorasDropdown(discord.ui.Select):
     def __init__(self):
         options = [
@@ -658,7 +698,7 @@ class HorasDropdown(discord.ui.Select):
         ]
         super().__init__(
             custom_id="select_horas_panel",
-            placeholder="🕒 Registrar Horas en...",
+            placeholder="🕒 Registrar Horas Manuales en...",
             min_values=1,
             max_values=1,
             options=options
@@ -703,8 +743,63 @@ class ServicioDropdown(discord.ui.Select):
 class PanelControlView(discord.ui.View):
     def __init__(self):
         super().__init__(timeout=None)
+        self.add_item(IniciarTurnoDropdown())
         self.add_item(HorasDropdown())
         self.add_item(ServicioDropdown())
+
+    @discord.ui.button(label="🔴 Finalizar Turno de Trabajo", style=discord.ButtonStyle.danger, custom_id="btn_finalizar_turno_panel")
+    async def btn_finalizar_turno(self, interaction: discord.Interaction, button: discord.ui.Button):
+        vinculo = await db.trabajador_de_canal(str(interaction.channel.id))
+        if not vinculo or vinculo["discord_id"] != str(interaction.user.id):
+            await interaction.response.send_message("Este panel solo puede ser usado por el dueño de la bitácora.", ephemeral=True)
+            return
+
+        activo = await db.finalizar_turno(str(interaction.user.id))
+        if not activo:
+            await interaction.response.send_message("⚠️ No tienes ningún turno activo en este momento. Inicia uno con 🟢 'Iniciar Turno'.", ephemeral=True)
+            return
+
+        inicio_dt = datetime.fromisoformat(activo["hora_inicio"])
+        fin_dt = datetime.utcnow()
+        duracion = (fin_dt - inicio_dt).total_seconds()
+        horas = round(duracion / 3600.0, 2)
+        if horas < 0.01:
+            horas = 0.01
+
+        seccion_key = activo["seccion"]
+        info_seccion = config.SECCIONES[seccion_key]
+        auto_validado = 0 if config.REQUIERE_APROBACION else 1
+
+        registro_id = await db.registrar_horas(
+            str(interaction.user.id),
+            interaction.user.display_name,
+            seccion_key,
+            horas,
+            nota="Marcaje automático de entrada y salida",
+            validado=auto_validado
+        )
+
+        inicio_local = inicio_dt.replace(tzinfo=UTC).astimezone(TZ_CLUB)
+        fin_local = fin_dt.replace(tzinfo=UTC).astimezone(TZ_CLUB)
+
+        estado_txt, color = _embed_estado(bool(auto_validado))
+        embed = discord.Embed(
+            title="🔴 Turno Finalizado",
+            description=f"**Área:** {info_seccion['nombre_visible']}",
+            color=color
+        )
+        embed.add_field(name="Horario Entrada - Salida", value=f"{inicio_local.strftime('%H:%M')} a {fin_local.strftime('%H:%M')}", inline=True)
+        embed.add_field(name="Tiempo Trabajado", value=f"**{horas} h**", inline=True)
+        embed.add_field(name="Pago Estimado", value=_peso(horas * info_seccion["tarifa_hora"]), inline=True)
+        embed.add_field(name="Estado", value=estado_txt, inline=False)
+        if config.REQUIERE_APROBACION:
+            embed.set_footer(text="El jefe del área aprueba reaccionando con ✅ a este mensaje.")
+
+        await interaction.response.send_message(embed=embed)
+        mensaje = await interaction.original_response()
+        await db.set_mensaje(registro_id, str(mensaje.id), str(interaction.channel.id))
+        if config.REQUIERE_APROBACION:
+            await mensaje.add_reaction("✅")
 
     @discord.ui.button(label="📊 Ver Mi Resumen Semanal", style=discord.ButtonStyle.secondary, custom_id="btn_resumen_panel")
     async def btn_resumen(self, interaction: discord.Interaction, button: discord.ui.Button):
@@ -908,6 +1003,92 @@ async def _validar_canal_personal(interaction: discord.Interaction):
                                                   ephemeral=True)
         return None
     return vinculo
+
+
+@bot.tree.command(name="iniciar-turno", description="Marca tu hora de entrada para comenzar a trabajar")
+@app_commands.describe(seccion="Área en la que vas a trabajar")
+@app_commands.choices(seccion=SECCION_CHOICES)
+async def iniciar_turno_cmd(interaction: discord.Interaction, seccion: app_commands.Choice[str]):
+    if not await _validar_canal_personal(interaction):
+        return
+    if not es_trabajador(interaction.user):
+        await interaction.response.send_message("No tienes un rol de trabajador.", ephemeral=True)
+        return
+
+    seccion_key = seccion.value
+    now_iso = await db.iniciar_turno(str(interaction.user.id), interaction.user.display_name, seccion_key, str(interaction.channel.id))
+    if not now_iso:
+        activo = await db.obtener_turno_activo(str(interaction.user.id))
+        sec_name = config.SECCIONES[activo['seccion']]['nombre_visible'] if activo else "otra área"
+        await interaction.response.send_message(f"⚠️ Ya tienes un turno activo en **{sec_name}**. Debes finalizarlo antes de iniciar otro.", ephemeral=True)
+        return
+
+    dt = datetime.fromisoformat(now_iso).replace(tzinfo=UTC).astimezone(TZ_CLUB)
+    embed = discord.Embed(
+        title="🟢 Turno Iniciado",
+        description=f"**Trabajador:** {interaction.user.display_name}\n"
+                    f"**Área:** {config.SECCIONES[seccion_key]['nombre_visible']}\n"
+                    f"**Hora de Entrada:** {dt.strftime('%H:%M:%S')}",
+        color=discord.Color.green()
+    )
+    embed.set_footer(text="Haz clic en 🔴 Finalizar Turno en el panel al terminar tu jornada.")
+    await interaction.response.send_message(embed=embed)
+
+
+@bot.tree.command(name="finalizar-turno", description="Marca tu hora de salida y calcula las horas trabajadas")
+@app_commands.describe(nota="Comentario opcional sobre tu jornada")
+async def finalizar_turno_cmd(interaction: discord.Interaction, nota: str = None):
+    if not await _validar_canal_personal(interaction):
+        return
+
+    activo = await db.finalizar_turno(str(interaction.user.id))
+    if not activo:
+        await interaction.response.send_message("⚠️ No tienes ningún turno activo en este momento. Inicia uno con `/iniciar-turno` o en el panel.", ephemeral=True)
+        return
+
+    inicio_dt = datetime.fromisoformat(activo["hora_inicio"])
+    fin_dt = datetime.utcnow()
+    duracion = (fin_dt - inicio_dt).total_seconds()
+    horas = round(duracion / 3600.0, 2)
+    if horas < 0.01:
+        horas = 0.01
+
+    seccion_key = activo["seccion"]
+    info_seccion = config.SECCIONES[seccion_key]
+    auto_validado = 0 if config.REQUIERE_APROBACION else 1
+
+    registro_id = await db.registrar_horas(
+        str(interaction.user.id),
+        interaction.user.display_name,
+        seccion_key,
+        horas,
+        nota or "Marcaje automático de entrada y salida",
+        validado=auto_validado
+    )
+
+    inicio_local = inicio_dt.replace(tzinfo=UTC).astimezone(TZ_CLUB)
+    fin_local = fin_dt.replace(tzinfo=UTC).astimezone(TZ_CLUB)
+
+    estado_txt, color = _embed_estado(bool(auto_validado))
+    embed = discord.Embed(
+        title="🔴 Turno Finalizado",
+        description=f"**Área:** {info_seccion['nombre_visible']}",
+        color=color
+    )
+    embed.add_field(name="Horario Entrada - Salida", value=f"{inicio_local.strftime('%H:%M')} a {fin_local.strftime('%H:%M')}", inline=True)
+    embed.add_field(name="Tiempo Trabajado", value=f"**{horas} h**", inline=True)
+    embed.add_field(name="Pago Estimado", value=_peso(horas * info_seccion["tarifa_hora"]), inline=True)
+    if nota:
+        embed.add_field(name="Nota", value=nota, inline=False)
+    embed.add_field(name="Estado", value=estado_txt, inline=False)
+    if config.REQUIERE_APROBACION:
+        embed.set_footer(text="El jefe del área aprueba reaccionando con ✅ a este mensaje.")
+
+    await interaction.response.send_message(embed=embed)
+    mensaje = await interaction.original_response()
+    await db.set_mensaje(registro_id, str(mensaje.id), str(interaction.channel.id))
+    if config.REQUIERE_APROBACION:
+        await mensaje.add_reaction("✅")
 
 
 @bot.tree.command(name="registrar-horas", description="Registra horas trabajadas (en tu canal personal)")
