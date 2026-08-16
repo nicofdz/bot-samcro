@@ -657,22 +657,29 @@
 
 <!-- Modal Detalle de Registros -->
 <div id="detailsModal" class="modal-backdrop hidden" onclick="handleBackdropClick(event)">
-  <div class="modal-content card">
-    <div class="modal-header">
-      <h2 id="modalTitle">Detalle de Registros</h2>
-      <button class="close-btn" onclick="cerrarDetallesModal()">&times;</button>
+  <div class="modal-content card" style="max-width: 780px; width: 95%;">
+    <div class="modal-header" style="display: block; border-bottom: 1px solid var(--border); padding-bottom: 12px;">
+      <div style="display: flex; justify-content: space-between; align-items: center;">
+        <h2 id="modalTitle" style="font-size: 18px; font-weight: 700; margin: 0;">Detalle de Registros</h2>
+        <button class="close-btn" onclick="cerrarDetallesModal()">&times;</button>
+      </div>
+
+      <!-- Selector de Opciones: Trabajos vs Horas Trabajadas -->
+      <div style="display: flex; gap: 10px; margin-top: 14px;">
+        <button id="tabTrabajosBtn" onclick="switchDetallesTab('trabajos')" style="padding: 8px 16px; border-radius: 8px; font-weight: 700; font-size: 13px; cursor: pointer; border: 1px solid var(--border); background: var(--surface-1); color: var(--text-primary); transition: all 0.2s; display: flex; align-items: center; gap: 8px;">
+          <i class="fa-solid fa-screwdriver-wrench" style="color: #4da0ff;"></i> <span>Ver Trabajos / Servicios</span>
+          <span id="countTrabajosBadge" style="background: rgba(77, 160, 255, 0.2); color: #4da0ff; padding: 2px 8px; border-radius: 12px; font-size: 11px; font-weight: 800;">0</span>
+        </button>
+        <button id="tabHorasBtn" onclick="switchDetallesTab('horas')" style="padding: 8px 16px; border-radius: 8px; font-weight: 700; font-size: 13px; cursor: pointer; border: 1px solid var(--border); background: var(--surface-1); color: var(--text-primary); transition: all 0.2s; display: flex; align-items: center; gap: 8px;">
+          <i class="fa-solid fa-clock" style="color: #e6b00f;"></i> <span>Ver Horas Trabajadas</span>
+          <span id="countHorasBadge" style="background: rgba(230, 176, 15, 0.2); color: #e6b00f; padding: 2px 8px; border-radius: 12px; font-size: 11px; font-weight: 800;">0</span>
+        </button>
+      </div>
     </div>
-    <div class="modal-body" style="overflow-x: auto;">
-      <table style="width: 100%; border-collapse: collapse; margin-top: 10px;">
-        <thead>
-          <tr style="border-bottom: 2px solid var(--border); text-align: left;">
-            <th style="padding: 10px 8px; color: var(--text-secondary); font-size: 12px; text-transform: uppercase;">Tipo</th>
-            <th style="padding: 10px 8px; color: var(--text-secondary); font-size: 12px; text-transform: uppercase;">Descripción</th>
-            <th style="padding: 10px 8px; color: var(--text-secondary); font-size: 12px; text-transform: uppercase;" class="num">Monto / Horas</th>
-            <th style="padding: 10px 8px; color: var(--text-secondary); font-size: 12px; text-transform: uppercase;" class="num">Comisión / Pago</th>
-            <th style="padding: 10px 8px; color: var(--text-secondary); font-size: 12px; text-transform: uppercase;">Nota</th>
-            <th style="padding: 10px 8px; color: var(--text-secondary); font-size: 12px; text-transform: uppercase; text-align: center;">Captura</th>
-          </tr>
+    <div class="modal-body" style="overflow-x: auto; padding-top: 14px;">
+      <table style="width: 100%; border-collapse: collapse;">
+        <thead id="detailsTableHead">
+          <!-- Se actualiza según la pestaña activa -->
         </thead>
         <tbody id="detailsTableBody">
           <!-- Rellenado dinámicamente -->
@@ -1299,6 +1306,10 @@ if (document.getElementById("searchInput")) {
   document.getElementById("searchInput").addEventListener("input", render);
 }
 
+let currentRegistrosDetalle = [];
+let currentSeccionDetalleKey = "";
+let currentDetalleTab = "trabajos";
+
 async function verDetallesTrabajador(seccionKey, nombreTrabajador) {
   if (window.location.protocol === "file:") {
     alert("El desglose detallado e imágenes de respaldo solo están disponibles cuando usas el bot en vivo en el servidor web, no en el archivo CSV local.");
@@ -1309,51 +1320,122 @@ async function verDetallesTrabajador(seccionKey, nombreTrabajador) {
   const tbody = document.getElementById("detailsTableBody");
   const modal = document.getElementById("detailsModal");
   
+  currentSeccionDetalleKey = seccionKey;
   titleEl.innerHTML = `Registros de ${nombreTrabajador} (${SECCIONES[seccionKey].label})`;
-  tbody.innerHTML = '<tr><td colspan="6" style="text-align:center; padding:20px;">Cargando detalles...</td></tr>';
+  tbody.innerHTML = '<tr><td colspan="5" style="text-align:center; padding:20px;">Cargando detalles...</td></tr>';
   modal.classList.remove("hidden");
   
   try {
     const res = await fetch(`/api/detalles/${seccionKey}/${nombreTrabajador}`);
     if (!res.ok) throw new Error("No se pudo obtener el detalle");
-    const registros = await res.json();
+    currentRegistrosDetalle = await res.json();
     
-    if (registros.length === 0) {
-      tbody.innerHTML = '<tr><td colspan="6" style="text-align:center; padding:20px; color:var(--text-muted);">No hay registros aprobados para este trabajador esta semana.</td></tr>';
+    const trabajosCount = currentRegistrosDetalle.filter(r => r.tipo === "servicio").length;
+    const horasCount = currentRegistrosDetalle.filter(r => r.tipo !== "servicio").length;
+    
+    document.getElementById("countTrabajosBadge").textContent = trabajosCount;
+    document.getElementById("countHorasBadge").textContent = horasCount;
+    
+    if (trabajosCount === 0 && horasCount > 0) {
+      currentDetalleTab = "horas";
+    } else {
+      currentDetalleTab = "trabajos";
+    }
+    
+    renderDetallesTab();
+  } catch (err) {
+    tbody.innerHTML = `<tr><td colspan="5" style="text-align:center; padding:20px; color:#e53e3e;">Error al cargar: ${err.message}</td></tr>`;
+  }
+}
+
+function switchDetallesTab(tab) {
+  currentDetalleTab = tab;
+  renderDetallesTab();
+}
+
+function renderDetallesTab() {
+  const headEl = document.getElementById("detailsTableHead");
+  const bodyEl = document.getElementById("detailsTableBody");
+  const trabajosBtn = document.getElementById("tabTrabajosBtn");
+  const horasBtn = document.getElementById("tabHorasBtn");
+  
+  if (currentDetalleTab === "trabajos") {
+    trabajosBtn.style.background = "rgba(77, 160, 255, 0.15)";
+    trabajosBtn.style.borderColor = "#4da0ff";
+    horasBtn.style.background = "var(--surface-1)";
+    horasBtn.style.borderColor = "var(--border)";
+    
+    headEl.innerHTML = `
+      <tr style="border-bottom: 2px solid var(--border); text-align: left;">
+        <th style="padding: 10px 8px; color: var(--text-secondary); font-size: 11px; text-transform: uppercase;">Servicio / Trabajo</th>
+        <th style="padding: 10px 8px; color: var(--text-secondary); font-size: 11px; text-transform: uppercase;" class="num">Monto Cobrado</th>
+        <th style="padding: 10px 8px; color: var(--text-secondary); font-size: 11px; text-transform: uppercase;" class="num">Comisión Ganada</th>
+        <th style="padding: 10px 8px; color: var(--text-secondary); font-size: 11px; text-transform: uppercase;">Nota</th>
+        <th style="padding: 10px 8px; color: var(--text-secondary); font-size: 11px; text-transform: uppercase; text-align: center;">Captura / Respaldo</th>
+      </tr>
+    `;
+    
+    const servicios = currentRegistrosDetalle.filter(r => r.tipo === "servicio");
+    if (servicios.length === 0) {
+      bodyEl.innerHTML = '<tr><td colspan="5" style="text-align:center; padding:24px; color:var(--text-muted);">No hay trabajos ni servicios registrados esta semana.</td></tr>';
       return;
     }
     
-    tbody.innerHTML = registros.map(r => {
-      const isServicio = r.tipo === "servicio";
-      const tipoBadge = isServicio 
-        ? '<span style="background:var(--series-mecanica); color:white; padding:2px 6px; border-radius:4px; font-size:11px; font-weight:600;">SERVICIO</span>'
-        : '<span style="background:var(--series-bar); color:white; padding:2px 6px; border-radius:4px; font-size:11px; font-weight:600;">TURNO</span>';
-      
-      const descripcion = isServicio ? r.servicio_nombre : "Horas trabajadas";
-      const montoHoras = isServicio ? fmtCLP(r.monto) : `${r.horas} h`;
-      const comisionPago = isServicio ? fmtCLP(r.comision) : fmtCLP(r.horas * (SECCIONES[seccionKey].tarifa_hora || 0));
+    bodyEl.innerHTML = servicios.map(r => {
       const nota = r.nota || '<span style="color:var(--text-muted); font-style:italic;">Sin nota</span>';
-      
-      let captura = '<span style="color:var(--text-muted); font-style:italic;">No requiere</span>';
+      let captura = '<span style="color:var(--text-muted); font-style:italic;">Sin captura</span>';
       if (r.foto_url) {
         const fullUrl = r.foto_url.startsWith("http") ? r.foto_url : window.location.origin + r.foto_url;
         captura = `<img src="${fullUrl}" class="thumbnail-img" onclick="window.open('${fullUrl}', '_blank')" title="Hacer clic para ampliar">`;
       }
-      
       return `
         <tr style="border-bottom:1px solid var(--border);">
-          <td style="padding:10px 8px;">${tipoBadge}</td>
-          <td style="padding:10px 8px; font-weight:600;">${descripcion}</td>
-          <td style="padding:10px 8px;" class="num">${montoHoras}</td>
-          <td style="padding:10px 8px;" class="num">${comisionPago}</td>
+          <td style="padding:10px 8px; font-weight:700; color:var(--text-primary);"><i class="fa-solid fa-wrench" style="color:#4da0ff; margin-right:6px;"></i> ${r.servicio_nombre}</td>
+          <td style="padding:10px 8px;" class="num">${fmtCLP(r.monto)}</td>
+          <td style="padding:10px 8px; font-weight:700; color:#2cd499;" class="num">${fmtCLP(r.comision)}</td>
           <td style="padding:10px 8px; font-size:13px; max-width:200px; word-wrap:break-word;">${nota}</td>
           <td style="padding:10px 8px; text-align:center;">${captura}</td>
         </tr>
       `;
     }).join("");
     
-  } catch (err) {
-    tbody.innerHTML = `<tr><td colspan="6" style="text-align:center; padding:20px; color:#e53e3e;">Error al cargar: ${err.message}</td></tr>`;
+  } else {
+    horasBtn.style.background = "rgba(230, 176, 15, 0.15)";
+    horasBtn.style.borderColor = "#e6b00f";
+    trabajosBtn.style.background = "var(--surface-1)";
+    trabajosBtn.style.borderColor = "var(--border)";
+    
+    headEl.innerHTML = `
+      <tr style="border-bottom: 2px solid var(--border); text-align: left;">
+        <th style="padding: 10px 8px; color: var(--text-secondary); font-size: 11px; text-transform: uppercase;">Tipo</th>
+        <th style="padding: 10px 8px; color: var(--text-secondary); font-size: 11px; text-transform: uppercase;" class="num">Tiempo Trabajado</th>
+        <th style="padding: 10px 8px; color: var(--text-secondary); font-size: 11px; text-transform: uppercase;" class="num">Pago Estimado</th>
+        <th style="padding: 10px 8px; color: var(--text-secondary); font-size: 11px; text-transform: uppercase;">Nota / Observación</th>
+        <th style="padding: 10px 8px; color: var(--text-secondary); font-size: 11px; text-transform: uppercase; text-align: center;">Fecha</th>
+      </tr>
+    `;
+    
+    const turnos = currentRegistrosDetalle.filter(r => r.tipo !== "servicio");
+    if (turnos.length === 0) {
+      bodyEl.innerHTML = '<tr><td colspan="5" style="text-align:center; padding:24px; color:var(--text-muted);">No hay turnos ni horas registradas esta semana.</td></tr>';
+      return;
+    }
+    
+    const tarifa = SECCIONES[currentSeccionDetalleKey]?.tarifa_hora || 0;
+    bodyEl.innerHTML = turnos.map(r => {
+      const nota = r.nota || '<span style="color:var(--text-muted); font-style:italic;">Sin nota</span>';
+      const pago = fmtCLP(r.horas * tarifa);
+      const fecha = r.creado_en ? new Date(r.creado_en).toLocaleString("es-CL", { hour: "2-digit", minute: "2-digit", day: "2-digit", month: "2-digit" }) : "-";
+      return `
+        <tr style="border-bottom:1px solid var(--border);">
+          <td style="padding:10px 8px; font-weight:700;"><span style="background:rgba(230,176,15,0.15); color:#e6b00f; border:1px solid rgba(230,176,15,0.3); padding:3px 8px; border-radius:6px; font-size:11px;"><i class="fa-solid fa-clock"></i> TURNO DE TRABAJO</span></td>
+          <td style="padding:10px 8px; font-weight:700;" class="num">${r.horas} h</td>
+          <td style="padding:10px 8px; font-weight:700; color:#2cd499;" class="num">${pago}</td>
+          <td style="padding:10px 8px; font-size:13px; max-width:220px; word-wrap:break-word;">${nota}</td>
+          <td style="padding:10px 8px; text-align:center; font-size:12px; color:var(--text-secondary);">${fecha}</td>
+        </tr>
+      `;
+    }).join("");
   }
 }
 
