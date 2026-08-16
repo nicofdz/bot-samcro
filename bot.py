@@ -115,18 +115,9 @@ async def handle_api_detalles(request):
             
         inicio_utc, fin_utc, _, _ = rango_semana_actual()
         
-        import aiosqlite
-        async with aiosqlite.connect(db.DB_PATH) as conn:
-            conn.row_factory = aiosqlite.Row
-            async with conn.execute(
-                """SELECT id, tipo, horas, servicio_nombre, monto, comision, nota, foto_url, creado_en 
-                   FROM registros 
-                   WHERE nombre = ? AND seccion = ? AND creado_en >= ? AND creado_en < ? AND validado = 1""",
-                (username, seccion_key, inicio_utc.isoformat(), fin_utc.isoformat())
-            ) as cursor:
-                rows = await cursor.fetchall()
-                detalles = [dict(r) for r in rows]
-                return web.json_response(detalles)
+        registros = await db.obtener_registros_semana(seccion_key, inicio_utc.isoformat(), fin_utc.isoformat(), solo_validados=True)
+        detalles = [r for r in registros if r.get("nombre") == username or r.get("discord_id") == username]
+        return web.json_response(detalles)
     except Exception as e:
         return web.json_response({"error": str(e)}, status=500)
 
