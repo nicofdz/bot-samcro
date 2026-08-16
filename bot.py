@@ -238,6 +238,28 @@ async def handle_eliminar_usuario(request):
         return web.json_response({"error": str(e)}, status=500)
 
 
+async def handle_editar_usuario(request):
+    user = request["user"]
+    if user["rol"] != "superadmin":
+        return web.json_response({"error": "No autorizado"}, status=403)
+        
+    try:
+        username_to_edit = request.match_info.get("username")
+        payload = await request.json()
+        rol = payload.get("rol", "jefe")
+        permisos = payload.get("permisos", [])
+        password = payload.get("password", None)
+        
+        target = await db.obtener_usuario(username_to_edit)
+        if not target:
+            return web.json_response({"error": "El usuario no existe"}, status=404)
+            
+        await db.actualizar_usuario(username_to_edit, rol, json.dumps(permisos), password)
+        return web.json_response({"success": True})
+    except Exception as e:
+        return web.json_response({"error": str(e)}, status=500)
+
+
 async def auth_middleware(app, handler):
     async def middleware(request):
         public_paths = ["/", "/api/login", "/api/logout"]
@@ -272,6 +294,7 @@ async def iniciar_servidor_web():
     
     app.router.add_get("/api/usuarios", handle_listar_usuarios)
     app.router.add_post("/api/usuarios", handle_crear_usuario)
+    app.router.add_put("/api/usuarios/{username}", handle_editar_usuario)
     app.router.add_delete("/api/usuarios/{username}", handle_eliminar_usuario)
     
     os.makedirs("uploads", exist_ok=True)

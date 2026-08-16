@@ -682,6 +682,69 @@
   </div>
 </div>
 
+<!-- Modal Editar Usuario -->
+<div id="editUserModal" class="modal-backdrop hidden" onclick="handleEditModalBackdropClick(event)">
+  <div class="modal-content card" style="max-width: 480px; padding: 24px;">
+    <div class="modal-header">
+      <h2 style="font-size: 18px; font-weight: 700; display: flex; align-items: center; gap: 8px;">
+        <i class="fa-solid fa-user-pen" style="color: #e6b00f;"></i> <span id="editUserTitle">Editar Usuario</span>
+      </h2>
+      <button class="close-btn" onclick="cerrarEditarModal()">&times;</button>
+    </div>
+    <form id="editUserForm" onsubmit="handleEditUserSubmit(event)">
+      <input type="hidden" id="editUsernameTarget">
+      <div class="input-group" style="margin-bottom: 16px;">
+        <label for="editRol"><i class="fa-solid fa-id-badge" style="margin-right: 4px;"></i> Rol del Usuario</label>
+        <select id="editRol" style="width: 100%; padding: 10px 12px; border: 1px solid var(--border); background: var(--surface-1); color: var(--text-primary); border-radius: 8px; font-size: 13px; outline: none;">
+          <option value="jefe">Encargado de Área (Jefe)</option>
+          <option value="superadmin">Administrador Total (Super Admin)</option>
+        </select>
+      </div>
+      <div class="input-group" style="margin-bottom: 16px;">
+        <label for="editPassword"><i class="fa-solid fa-key" style="margin-right: 4px;"></i> Nueva Contraseña (Opcional)</label>
+        <input type="password" id="editPassword" placeholder="Dejar en blanco para mantener actual">
+      </div>
+      <div class="input-group" style="margin-bottom: 20px;">
+        <label style="display:block; margin-bottom:8px; font-weight:600;"><i class="fa-solid fa-shield-halved" style="margin-right: 4px;"></i> Permisos de Acceso</label>
+        <div class="permisos-grid">
+          <label class="permiso-option">
+            <input type="checkbox" value="consolidado" class="edit-permiso-checkbox">
+            <i class="fa-solid fa-motorcycle" style="color: #e6b00f;"></i>
+            <span>Club Completo (Consolidado)</span>
+          </label>
+          <label class="permiso-option">
+            <input type="checkbox" value="mecanica" class="edit-permiso-checkbox">
+            <i class="fa-solid fa-wrench" style="color: #4da0ff;"></i>
+            <span>Mecánica</span>
+          </label>
+          <label class="permiso-option">
+            <input type="checkbox" value="bar" class="edit-permiso-checkbox">
+            <i class="fa-solid fa-beer-mug-empty" style="color: #ff8552;"></i>
+            <span>Bar / Comida</span>
+          </label>
+          <label class="permiso-option">
+            <input type="checkbox" value="tatuajes" class="edit-permiso-checkbox">
+            <i class="fa-solid fa-pen-nib" style="color: #2cd499;"></i>
+            <span>Tatuajes</span>
+          </label>
+          <label class="permiso-option">
+            <input type="checkbox" value="show" class="edit-permiso-checkbox">
+            <i class="fa-solid fa-star" style="color: #ffbe3b;"></i>
+            <span>Bailarinas / Show</span>
+          </label>
+        </div>
+      </div>
+      <div id="editUserError" class="error-message hidden" style="color: #e53e3e; font-size: 12px; margin-bottom: 12px;"></div>
+      <div style="display: flex; gap: 10px; justify-content: flex-end;">
+        <button type="button" class="btn" onclick="cerrarEditarModal()" style="padding: 10px 16px;">Cancelar</button>
+        <button type="submit" class="login-btn" style="width: auto; padding: 10px 20px; display: flex; align-items: center; gap: 8px;">
+          <i class="fa-solid fa-floppy-disk"></i> Guardar Cambios
+        </button>
+      </div>
+    </form>
+  </div>
+</div>
+
 <script>
 const SECCIONES = {
   mecanica:  { label: '<i class="fa-solid fa-wrench"></i> Mecánica',         varColor: "--series-mecanica" },
@@ -1077,9 +1140,12 @@ async function cargarUsuariosList() {
     
     tbody.innerHTML = usuarios.map(u => {
       const isSelf = u.username === usuarioLogueado.username;
+      
+      const btnEditar = `<button class="btn" onclick="abrirEditarUsuario('${u.username}', '${u.rol}', ${JSON.stringify(u.permisos).replace(/"/g, '&quot;')})" style="background:rgba(230,176,15,0.15); color:#e6b00f; border:1px solid rgba(230,176,15,0.3); padding:6px 12px; border-radius:6px; font-size:12px; cursor:pointer; font-weight:600; margin-right:6px; transition:all 0.2s;"><i class="fa-solid fa-pen-to-square"></i> Editar</button>`;
+      
       const btnEliminar = isSelf 
-        ? '<span style="font-size:12px; color: var(--text-muted);"><i class="fa-solid fa-user-check"></i> Actual (tú)</span>'
-        : `<button class="btn" onclick="eliminarUsuario('${u.username}')" style="background:rgba(229,62,62,0.15); color:#fc8181; border:1px solid rgba(229,62,62,0.3); padding:6px 12px; border-radius:6px; font-size:12px; cursor:pointer; font-weight:600; transition:all 0.2s;"><i class="fa-solid fa-trash-can"></i> Eliminar</button>`;
+        ? `${btnEditar}<span style="font-size:12px; color: var(--text-muted);"><i class="fa-solid fa-user-check"></i> Actual (tú)</span>`
+        : `${btnEditar}<button class="btn" onclick="eliminarUsuario('${u.username}')" style="background:rgba(229,62,62,0.15); color:#fc8181; border:1px solid rgba(229,62,62,0.3); padding:6px 12px; border-radius:6px; font-size:12px; cursor:pointer; font-weight:600; transition:all 0.2s;"><i class="fa-solid fa-trash-can"></i> Eliminar</button>`;
       
       const roleBadge = u.rol === "superadmin"
         ? '<span class="role-badge superadmin"><i class="fa-solid fa-crown"></i> SUPERADMIN</span>'
@@ -1097,7 +1163,7 @@ async function cargarUsuariosList() {
           <td style="padding:12px 8px; font-weight:700; color:var(--text-primary);"><i class="fa-solid fa-circle-user" style="color:var(--text-secondary); margin-right:6px;"></i> ${u.username}</td>
           <td style="padding:12px 8px;">${roleBadge}</td>
           <td style="padding:12px 8px; max-width:250px;">${permisosList}</td>
-          <td style="padding:12px 8px;" class="num">${btnEliminar}</td>
+          <td style="padding:12px 8px; white-space:nowrap;" class="num">${btnEliminar}</td>
         </tr>
       `;
     }).join("");
@@ -1151,6 +1217,61 @@ async function eliminarUsuario(username) {
     await cargarUsuariosList();
   } catch (err) {
     alert(`Error: ${err.message}`);
+  }
+}
+
+function abrirEditarUsuario(username, rol, permisos) {
+  document.getElementById("editUsernameTarget").value = username;
+  document.getElementById("editUserTitle").textContent = `Editar Usuario: ${username}`;
+  document.getElementById("editRol").value = rol;
+  document.getElementById("editPassword").value = "";
+  document.getElementById("editUserError").classList.add("hidden");
+
+  const permisosArr = Array.isArray(permisos) ? permisos : [];
+  document.querySelectorAll(".edit-permiso-checkbox").forEach(cb => {
+    cb.checked = permisosArr.includes(cb.value);
+  });
+
+  document.getElementById("editUserModal").classList.remove("hidden");
+}
+
+function cerrarEditarModal() {
+  document.getElementById("editUserModal").classList.add("hidden");
+}
+
+function handleEditModalBackdropClick(e) {
+  if (e.target.id === "editUserModal") {
+    cerrarEditarModal();
+  }
+}
+
+async function handleEditUserSubmit(e) {
+  e.preventDefault();
+  const username = document.getElementById("editUsernameTarget").value;
+  const rol = document.getElementById("editRol").value;
+  const password = document.getElementById("editPassword").value;
+  const errorEl = document.getElementById("editUserError");
+
+  const permisos = [];
+  document.querySelectorAll(".edit-permiso-checkbox:checked").forEach(cb => {
+    permisos.push(cb.value);
+  });
+
+  try {
+    const res = await fetch(`/api/usuarios/${username}`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ rol, permisos, password: password || undefined })
+    });
+
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || "Error al actualizar usuario");
+
+    cerrarEditarModal();
+    await cargarUsuariosList();
+  } catch (err) {
+    errorEl.textContent = err.message;
+    errorEl.classList.remove("hidden");
   }
 }
 

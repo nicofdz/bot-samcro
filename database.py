@@ -290,6 +290,22 @@ async def crear_usuario(username: str, password_plain: str, rol: str, permisos_j
         await db.commit()
 
 
+async def actualizar_usuario(username: str, rol: str, permisos_json: str, password_plain: str = None):
+    async with aiosqlite.connect(DB_PATH) as db:
+        if password_plain and password_plain.strip():
+            password_hash = hash_password(password_plain)
+            await db.execute(
+                "UPDATE usuarios SET rol = ?, permisos = ?, password_hash = ? WHERE username = ?",
+                (rol, permisos_json, password_hash, username),
+            )
+        else:
+            await db.execute(
+                "UPDATE usuarios SET rol = ?, permisos = ? WHERE username = ?",
+                (rol, permisos_json, username),
+            )
+        await db.commit()
+
+
 async def obtener_usuario(username: str):
     async with aiosqlite.connect(DB_PATH) as db:
         db.row_factory = aiosqlite.Row
