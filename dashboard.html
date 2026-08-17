@@ -664,6 +664,39 @@
         <button class="close-btn" onclick="cerrarDetallesModal()">&times;</button>
       </div>
 
+      <!-- Tarjetas de Resumen General del Trabajador -->
+      <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 12px; margin-top: 14px;">
+        <!-- Total a Pagar -->
+        <div style="background: var(--surface-1); border: 1px solid var(--border); border-radius: 10px; padding: 12px 14px; display: flex; flex-direction: column; gap: 4px;">
+          <span style="font-size: 11px; font-weight: 700; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.5px; display: flex; align-items: center; gap: 6px;">
+            <i class="fa-solid fa-wallet" style="color: #2cd499;"></i> Total a Pagar
+          </span>
+          <span id="modalMetricTotal" style="font-size: 20px; font-weight: 800; color: #2cd499;">$0</span>
+        </div>
+
+        <!-- Pago por Horario / Turnos -->
+        <div style="background: var(--surface-1); border: 1px solid var(--border); border-radius: 10px; padding: 12px 14px; display: flex; flex-direction: column; gap: 4px;">
+          <span style="font-size: 11px; font-weight: 700; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.5px; display: flex; align-items: center; gap: 6px;">
+            <i class="fa-solid fa-clock" style="color: #e6b00f;"></i> Pago por Horario
+          </span>
+          <div style="display: flex; justify-content: space-between; align-items: baseline;">
+            <span id="modalMetricPagoHoras" style="font-size: 18px; font-weight: 800; color: var(--text-primary);">$0</span>
+            <span id="modalMetricHoras" style="font-size: 12px; font-weight: 700; color: #e6b00f;">0 h</span>
+          </div>
+        </div>
+
+        <!-- Pago por Trabajos / Servicios -->
+        <div style="background: var(--surface-1); border: 1px solid var(--border); border-radius: 10px; padding: 12px 14px; display: flex; flex-direction: column; gap: 4px;">
+          <span style="font-size: 11px; font-weight: 700; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.5px; display: flex; align-items: center; gap: 6px;">
+            <i class="fa-solid fa-screwdriver-wrench" style="color: #4da0ff;"></i> Comisiones Trabajos
+          </span>
+          <div style="display: flex; justify-content: space-between; align-items: baseline;">
+            <span id="modalMetricComisiones" style="font-size: 18px; font-weight: 800; color: var(--text-primary);">$0</span>
+            <span id="modalMetricTrabajos" style="font-size: 12px; font-weight: 700; color: #4da0ff;">0 serv.</span>
+          </div>
+        </div>
+      </div>
+
       <!-- Selector de Opciones: Trabajos vs Horas Trabajadas -->
       <div style="display: flex; gap: 10px; margin-top: 14px;">
         <button id="tabTrabajosBtn" onclick="switchDetallesTab('trabajos')" style="padding: 8px 16px; border-radius: 8px; font-weight: 700; font-size: 13px; cursor: pointer; border: 1px solid var(--border); background: var(--surface-1); color: var(--text-primary); transition: all 0.2s; display: flex; align-items: center; gap: 8px;">
@@ -1330,13 +1363,34 @@ async function verDetallesTrabajador(seccionKey, nombreTrabajador) {
     if (!res.ok) throw new Error("No se pudo obtener el detalle");
     currentRegistrosDetalle = await res.json();
     
-    const trabajosCount = currentRegistrosDetalle.filter(r => r.tipo === "servicio").length;
-    const horasCount = currentRegistrosDetalle.filter(r => r.tipo !== "servicio").length;
+    const tarifa = SECCIONES[seccionKey]?.tarifa_hora || 0;
+    let totalHoras = 0;
+    let totalPagoHoras = 0;
+    let totalServiciosCount = 0;
+    let totalComisiones = 0;
+
+    currentRegistrosDetalle.forEach(r => {
+      if (r.tipo === "servicio") {
+        totalServiciosCount++;
+        totalComisiones += (r.comision || 0);
+      } else {
+        totalHoras += (r.horas || 0);
+        totalPagoHoras += ((r.horas || 0) * tarifa);
+      }
+    });
+
+    const granTotal = totalPagoHoras + totalComisiones;
+
+    document.getElementById("modalMetricTotal").textContent = fmtCLP(granTotal);
+    document.getElementById("modalMetricPagoHoras").textContent = fmtCLP(totalPagoHoras);
+    document.getElementById("modalMetricHoras").textContent = `${totalHoras.toFixed(2)} h`;
+    document.getElementById("modalMetricComisiones").textContent = fmtCLP(totalComisiones);
+    document.getElementById("modalMetricTrabajos").textContent = `${totalServiciosCount} serv.`;
+
+    document.getElementById("countTrabajosBadge").textContent = totalServiciosCount;
+    document.getElementById("countHorasBadge").textContent = currentRegistrosDetalle.filter(r => r.tipo !== "servicio").length;
     
-    document.getElementById("countTrabajosBadge").textContent = trabajosCount;
-    document.getElementById("countHorasBadge").textContent = horasCount;
-    
-    if (trabajosCount === 0 && horasCount > 0) {
+    if (totalServiciosCount === 0 && totalHoras > 0) {
       currentDetalleTab = "horas";
     } else {
       currentDetalleTab = "trabajos";
