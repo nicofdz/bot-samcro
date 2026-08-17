@@ -986,17 +986,33 @@ function render() {
   document.getElementById("sectionTables").innerHTML = seccionesConDatos.map(key => {
     const regs = [...dataFiltrada[key]].sort((a, b) => b.total - a.total);
     const total = regs.reduce((s, r) => s + r.total, 0);
+    const isMecanica = (key === "mecanica");
+    
     const filas = regs.length
-      ? regs.map(r => `
-          <tr onclick="verDetallesTrabajador('${key}', '${r.nombre}')" style="cursor: pointer;" title="Haz clic para ver registros individuales">
-            <td class="name" style="text-decoration: underline; font-weight: 600; color: var(--text-primary);">${r.nombre}</td>
-            <td class="num">${r.horas} h</td>
-            <td class="num">${fmtCLP(r.pagoHours || r.pagoHoras)}</td>
-            <td class="num">${r.nServicios}</td>
-            <td class="num">${fmtCLP(r.comisiones)}</td>
-            <td class="num total">${fmtCLP(r.total)}</td>
-          </tr>`).join("")
+      ? regs.map(r => {
+          const horasVal = r.horas || 0;
+          const pagoH = r.pagoHours || r.pagoHoras || 0;
+          const horasBadge = isMecanica
+            ? (horasVal >= 10 ? `${horasVal} h <i class="fa-solid fa-circle-check" style="color:#2cd499; margin-left:4px;" title="Cumplió la meta de 10 hrs semanales"></i>` : `${horasVal} h <i class="fa-solid fa-circle-info" style="color:#e6b00f; margin-left:4px;" title="Faltan horas para sueldo base ($10.000)"></i>`)
+            : `${horasVal} h`;
+            
+          const sueldoBaseCol = isMecanica
+            ? (horasVal >= 10 ? `<span style="color:#2cd499; font-weight:700;">${fmtCLP(pagoH)}</span>` : `<span style="color:var(--text-muted);" title="Requiere 10 hrs semanales">$0</span>`)
+            : fmtCLP(pagoH);
+
+          return `
+            <tr onclick="verDetallesTrabajador('${key}', '${r.nombre}')" style="cursor: pointer;" title="Haz clic para ver registros individuales">
+              <td class="name" style="text-decoration: underline; font-weight: 600; color: var(--text-primary);">${r.nombre}</td>
+              <td class="num">${horasBadge}</td>
+              <td class="num">${sueldoBaseCol}</td>
+              <td class="num">${r.nServicios}</td>
+              <td class="num">${fmtCLP(r.comisiones)}</td>
+              <td class="num total">${fmtCLP(r.total)}</td>
+            </tr>`;
+        }).join("")
       : `<tr><td colspan="6" class="empty-section">Sin registros coincidentes.</td></tr>`;
+
+    const colPagoHeader = isMecanica ? "Sueldo Base ($10k/$20k)" : "Pago horas";
 
     return `
       <div class="card section-card">
@@ -1006,7 +1022,7 @@ function render() {
         </div>
         <table>
           <thead><tr>
-            <th>Trabajador</th><th class="num">Horas</th><th class="num">Pago horas</th>
+            <th>Trabajador</th><th class="num">Horas</th><th class="num">${colPagoHeader}</th>
             <th class="num">Servicios</th><th class="num">Comisiones</th><th class="num">Total</th>
           </tr></thead>
           <tbody>${filas}</tbody>

@@ -35,27 +35,46 @@ SECCIONES = {
     "mecanica": {
         "nombre_visible": "🔧 Mecánica",
         "rol_jefe": ["Jefe de Mecánico", "Jefe Mecánica"],
-        "tarifa_hora": 150,
+        "tarifa_hora": 0,
         "comision_servicio": 0.30,
+        "usa_sueldo_base": True,
     },
     "bar": {
         "nombre_visible": "🍺 Bar / Comida",
         "rol_jefe": ["Jefe de Barra", "Jefe Bar"],
         "tarifa_hora": 120,
         "comision_servicio": 0.20,
+        "usa_sueldo_base": False,
     },
     "tatuajes": {
         "nombre_visible": "🖋️ Tatuajes",
         "rol_jefe": ["Jefe Tatuador", "Jefe Tatuajes"],
         "tarifa_hora": 100,
         "comision_servicio": 0.40,
+        "usa_sueldo_base": False,
     },
     "show": {
         "nombre_visible": "💃 Bailarinas / Show",
         "rol_jefe": ["Jefa de Bailarinas", "Jefe Show"],
         "tarifa_hora": 100,
         "comision_servicio": 0.35,
+        "usa_sueldo_base": False,
     },
+}
+
+SUELDO_BASE_TRABAJADOR = 10000
+SUELDO_BASE_JEFE = 20000
+HORAS_MINIMAS_SUELDO_BASE = 10.0
+
+PORCENTAJE_COMISION_POR_ROL = {
+    "Jefe de Mecánico": 0.40,
+    "Jefe Mecánica": 0.40,
+    "Mecánico Experto": 0.40,
+    "Mecánico Avanzado": 0.35,
+    "Mecánico Intermedio": 0.35,
+    "Mecánico Principiante": 0.30,
+    "Mecánico Practicante": 0.30,
+    "Mecánico": 0.30,
 }
 
 # Roles de TRABAJADOR habilitados para tener canal personal y registrar.

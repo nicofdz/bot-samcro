@@ -406,11 +406,31 @@ async def calcular_nomina(seccion_key: str, inicio_utc: datetime, fin_utc: datet
             resumen[did]["monto_servicios"] += r["monto"]
             resumen[did]["pago_comisiones"] += r["comision"]
 
-    for datos in resumen.values():
-        datos["pago_horas"] = round(datos["horas"] * seccion["tarifa_hora"], 2)
+    for did, datos in resumen.items():
+        if seccion.get("usa_sueldo_base"):
+            # En Mecánica: Sueldo base aplica solo si cumple 10 horas trabajadas en la semana
+            if datos["horas"] >= config.HORAS_MINIMAS_SUELDO_BASE:
+                target_user = await db.obtener_usuario(datos["nombre"])
+                if target_user and target_user.get("rol") in ["superadmin", "jefe"]:
+                    datos["pago_horas"] = float(config.SUELDO_BASE_JEFE)
+                else:
+                    datos["pago_horas"] = float(config.SUELDO_BASE_TRABAJADOR)
+            else:
+                datos["pago_horas"] = 0.0
+        else:
+            datos["pago_horas"] = round(datos["horas"] * seccion["tarifa_hora"], 2)
+
         datos["pago_comisiones"] = round(datos["pago_comisiones"], 2)
         datos["total"] = round(datos["pago_horas"] + datos["pago_comisiones"], 2)
     return resumen
+
+
+def obtener_porcentaje_comision(member: discord.Member, seccion_key: str) -> float:
+    if seccion_key == "mecanica" and hasattr(member, "roles"):
+        for role in member.roles:
+            if role.name in config.PORCENTAJE_COMISION_POR_ROL:
+                return config.PORCENTAJE_COMISION_POR_ROL[role.name]
+    return config.SECCIONES[seccion_key].get("comision_servicio", 0.30)
 
 
 def _peso(n):
@@ -604,7 +624,8 @@ class ServicioModal(discord.ui.Modal):
 
         seccion_key = self.seccion_key
         info_seccion = config.SECCIONES[seccion_key]
-        comision = round(monto * info_seccion["comision_servicio"], 2)
+        porcentaje_comision = obtener_porcentaje_comision(interaction.user, seccion_key)
+        comision = round(monto * porcentaje_comision, 2)
         auto_validado = 0 if config.REQUIERE_APROBACION else 1
         nota = self.nota_input.value.strip() or None
         servicio = self.servicio_input.value.strip()
