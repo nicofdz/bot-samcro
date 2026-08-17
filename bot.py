@@ -822,10 +822,6 @@ class PanelControlView(discord.ui.View):
         self.add_item(IniciarTurnoDropdown())
         self.add_item(HorasDropdown())
         self.add_item(ServicioDropdown())
-        mensaje = await interaction.original_response()
-        await db.set_mensaje(registro_id, str(mensaje.id), str(interaction.channel.id))
-        if config.REQUIERE_APROBACION:
-            await mensaje.add_reaction("✅")
 
     @discord.ui.button(label="📊 Ver Mi Resumen Semanal", style=discord.ButtonStyle.secondary, custom_id="btn_resumen_panel")
     async def btn_resumen(self, interaction: discord.Interaction, button: discord.ui.Button):
