@@ -678,7 +678,7 @@ class IniciarTurnoDropdown(discord.ui.Select):
             color=discord.Color.green()
         )
         embed.set_footer(text="Haz clic en 🔴 Finalizar Turno en el panel al terminar tu jornada.")
-        await interaction.response.send_message(embed=embed)
+        await interaction.response.send_message(embed=embed, ephemeral=True)
 
 
 class HorasDropdown(discord.ui.Select):
@@ -1023,7 +1023,7 @@ async def iniciar_turno_cmd(interaction: discord.Interaction, seccion: app_comma
         color=discord.Color.green()
     )
     embed.set_footer(text="Haz clic en 🔴 Finalizar Turno en el panel al terminar tu jornada.")
-    await interaction.response.send_message(embed=embed)
+    await interaction.response.send_message(embed=embed, ephemeral=True)
 
 
 @bot.tree.command(name="finalizar-turno", description="Marca tu hora de salida y calcula las horas trabajadas")
@@ -1397,6 +1397,22 @@ async def revisar_cierre_semanal():
             await channel.send(content=f"<@{canal_info['discord_id']}>", embed=embed)
         except discord.Forbidden:
             pass
+
+    # 1.5) Limpieza automática de mensajes en el chat de Discord (La base de datos permanece 100% intacta)
+    for canal_info in canales:
+        try:
+            channel = guild.get_channel(int(canal_info["canal_id"]))
+            if channel:
+                await channel.purge(limit=100)
+                bienvenida = discord.Embed(
+                    title=f"👋 Bitácora de {canal_info['nombre']}",
+                    description="Este es tu canal personal de bitácora para la nueva semana. Usa el panel interactivo de abajo para registrar tus turnos y servicios.",
+                    color=discord.Color.blurple()
+                )
+                bienvenida.set_footer(text=f"Todos los domingos a las {config.HORA_CIERRE_SEMANA} se calcula tu pago automáticamente.")
+                await channel.send(content=f"<@{canal_info['discord_id']}>", embed=bienvenida, view=PanelControlView())
+        except Exception as e:
+            print(f"Error al limpiar chat de bitácora {canal_info['canal_id']}: {e}")
 
     # 2) Resumen consolidado para jefes/liderazgo
     canal_resumen = discord.utils.get(guild.text_channels, name=config.CANAL_RESUMEN_NOMINA)
