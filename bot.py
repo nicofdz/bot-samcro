@@ -303,6 +303,7 @@ async def iniciar_servidor_web():
 async def custom_setup_hook():
     bot.loop.create_task(iniciar_servidor_web())
     bot.add_view(PanelControlView())
+    bot.add_view(FinalizarTurnoView())
 
 bot.setup_hook = custom_setup_hook
 
@@ -695,11 +696,11 @@ class IniciarTurnoDropdown(discord.ui.Select):
             title="🟢 Turno Iniciado",
             description=f"**Trabajador:** {interaction.user.display_name}\n"
                         f"**Área:** {config.SECCIONES[seccion_key]['nombre_visible']}\n"
-                        f"**Hora de Entrada:** {dt.strftime('%H:%M:%S')}",
+                        f"**Hora de Entrada:** {dt.strftime('%H:%M:%S')}\n\n"
+                        f"📌 Presiona el botón rojo de abajo cuando desees **finalizar tu turno**.",
             color=discord.Color.green()
         )
-        embed.set_footer(text="Haz clic en 🔴 Finalizar Turno en el panel al terminar tu jornada.")
-        await interaction.response.send_message(embed=embed, ephemeral=True)
+        await interaction.response.send_message(embed=embed, view=FinalizarTurnoView(), ephemeral=True)
 
 
 class HorasDropdown(discord.ui.Select):
@@ -752,23 +753,15 @@ class ServicioDropdown(discord.ui.Select):
         await interaction.response.send_modal(modal)
 
 
-class PanelControlView(discord.ui.View):
+class FinalizarTurnoView(discord.ui.View):
     def __init__(self):
         super().__init__(timeout=None)
-        self.add_item(IniciarTurnoDropdown())
-        self.add_item(HorasDropdown())
-        self.add_item(ServicioDropdown())
 
-    @discord.ui.button(label="🔴 Finalizar Turno de Trabajo", style=discord.ButtonStyle.danger, custom_id="btn_finalizar_turno_panel")
-    async def btn_finalizar_turno(self, interaction: discord.Interaction, button: discord.ui.Button):
-        vinculo = await db.trabajador_de_canal(str(interaction.channel.id))
-        if not vinculo or vinculo["discord_id"] != str(interaction.user.id):
-            await interaction.response.send_message("Este panel solo puede ser usado por el dueño de la bitácora.", ephemeral=True)
-            return
-
+    @discord.ui.button(label="🔴 Finalizar Turno de Trabajo", style=discord.ButtonStyle.danger, custom_id="btn_finalizar_turno_active")
+    async def btn_finalizar_turno_active(self, interaction: discord.Interaction, button: discord.ui.Button):
         activo = await db.finalizar_turno(str(interaction.user.id))
         if not activo:
-            await interaction.response.send_message("⚠️ No tienes ningún turno activo en este momento. Inicia uno con 🟢 'Iniciar Turno'.", ephemeral=True)
+            await interaction.response.send_message("⚠️ No tienes ningún turno activo en este momento.", ephemeral=True)
             return
 
         inicio_dt = datetime.fromisoformat(activo["hora_inicio"])
@@ -802,12 +795,33 @@ class PanelControlView(discord.ui.View):
         )
         embed.add_field(name="Horario Entrada - Salida", value=f"{inicio_local.strftime('%H:%M')} a {fin_local.strftime('%H:%M')}", inline=True)
         embed.add_field(name="Tiempo Trabajado", value=f"**{horas} h**", inline=True)
-        embed.add_field(name="Pago Estimado", value=_peso(horas * info_seccion["tarifa_hora"]), inline=True)
+
+        if info_seccion.get("usa_sueldo_base"):
+            pago_txt = "Sueldo base ($10k/$20k al cumplir 10 hrs)"
+        else:
+            pago_txt = _peso(horas * info_seccion["tarifa_hora"])
+
+        embed.add_field(name="Pago Estimado", value=pago_txt, inline=True)
         embed.add_field(name="Estado", value=estado_txt, inline=False)
         if config.REQUIERE_APROBACION:
             embed.set_footer(text="El jefe del área aprueba reaccionando con ✅ a este mensaje.")
 
-        await interaction.response.send_message(embed=embed)
+        button.disabled = True
+        await interaction.response.edit_message(content="✅ **Turno finalizado correctamente.**", view=self)
+
+        canal = interaction.channel
+        mensaje = await canal.send(embed=embed)
+        await db.set_mensaje(registro_id, str(mensaje.id), str(interaction.channel.id))
+        if config.REQUIERE_APROBACION:
+            await mensaje.add_reaction("✅")
+
+
+class PanelControlView(discord.ui.View):
+    def __init__(self):
+        super().__init__(timeout=None)
+        self.add_item(IniciarTurnoDropdown())
+        self.add_item(HorasDropdown())
+        self.add_item(ServicioDropdown())
         mensaje = await interaction.original_response()
         await db.set_mensaje(registro_id, str(mensaje.id), str(interaction.channel.id))
         if config.REQUIERE_APROBACION:
