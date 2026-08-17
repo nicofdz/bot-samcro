@@ -1404,7 +1404,7 @@ async function verDetallesTrabajador(seccionKey, nombreTrabajador) {
     document.getElementById("modalMetricTrabajos").textContent = `${totalServiciosCount} serv.`;
 
     document.getElementById("countTrabajosBadge").textContent = totalServiciosCount;
-    document.getElementById("countHorasBadge").textContent = currentRegistrosDetalle.filter(r => r.tipo !== "servicio").length;
+    document.getElementById("countHorasBadge").textContent = `${totalHoras.toFixed(2)} h`;
     
     if (totalServiciosCount === 0 && totalHoras > 0) {
       currentDetalleTab = "horas";
@@ -1439,6 +1439,7 @@ function renderDetallesTab() {
       <tr style="border-bottom: 2px solid var(--border); text-align: left;">
         <th style="padding: 10px 8px; color: var(--text-secondary); font-size: 11px; text-transform: uppercase;">Servicio / Trabajo</th>
         <th style="padding: 10px 8px; color: var(--text-secondary); font-size: 11px; text-transform: uppercase;" class="num">Monto Cobrado</th>
+        <th style="padding: 10px 8px; color: var(--text-secondary); font-size: 11px; text-transform: uppercase; text-align: center;">% Aplicado</th>
         <th style="padding: 10px 8px; color: var(--text-secondary); font-size: 11px; text-transform: uppercase;" class="num">Comisión Ganada</th>
         <th style="padding: 10px 8px; color: var(--text-secondary); font-size: 11px; text-transform: uppercase;">Nota</th>
         <th style="padding: 10px 8px; color: var(--text-secondary); font-size: 11px; text-transform: uppercase; text-align: center;">Captura / Respaldo</th>
@@ -1447,12 +1448,17 @@ function renderDetallesTab() {
     
     const servicios = currentRegistrosDetalle.filter(r => r.tipo === "servicio");
     if (servicios.length === 0) {
-      bodyEl.innerHTML = '<tr><td colspan="5" style="text-align:center; padding:24px; color:var(--text-muted);">No hay trabajos ni servicios registrados esta semana.</td></tr>';
+      bodyEl.innerHTML = '<tr><td colspan="6" style="text-align:center; padding:24px; color:var(--text-muted);">No hay trabajos ni servicios registrados esta semana.</td></tr>';
       return;
     }
     
     bodyEl.innerHTML = servicios.map(r => {
       const nota = r.nota || '<span style="color:var(--text-muted); font-style:italic;">Sin nota</span>';
+      const pct = (r.monto > 0 && r.comision > 0) ? Math.round((r.comision / r.monto) * 100) : 0;
+      const pctBadge = pct > 0 
+        ? `<span style="background:rgba(44, 212, 153, 0.15); color:#2cd499; border:1px solid rgba(44, 212, 153, 0.3); padding:2px 8px; border-radius:12px; font-weight:800; font-size:11px;">${pct}%</span>`
+        : '<span style="color:var(--text-muted); font-size:11px;">-</span>';
+
       let captura = '<span style="color:var(--text-muted); font-style:italic;">Sin captura</span>';
       if (r.foto_url) {
         const fullUrl = r.foto_url.startsWith("http") ? r.foto_url : window.location.origin + r.foto_url;
@@ -1462,8 +1468,9 @@ function renderDetallesTab() {
         <tr style="border-bottom:1px solid var(--border);">
           <td style="padding:10px 8px; font-weight:700; color:var(--text-primary);"><i class="fa-solid fa-wrench" style="color:#4da0ff; margin-right:6px;"></i> ${r.servicio_nombre}</td>
           <td style="padding:10px 8px;" class="num">${fmtCLP(r.monto)}</td>
+          <td style="padding:10px 8px; text-align:center;">${pctBadge}</td>
           <td style="padding:10px 8px; font-weight:700; color:#2cd499;" class="num">${fmtCLP(r.comision)}</td>
-          <td style="padding:10px 8px; font-size:13px; max-width:200px; word-wrap:break-word;">${nota}</td>
+          <td style="padding:10px 8px; font-size:13px; max-width:180px; word-wrap:break-word;">${nota}</td>
           <td style="padding:10px 8px; text-align:center;">${captura}</td>
         </tr>
       `;
