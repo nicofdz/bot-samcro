@@ -637,6 +637,21 @@
           </form>
         </div>
       </div>
+
+      <!-- DANGER ZONE / RESET DE BDD -->
+      <div class="card" style="padding: 24px; margin-top: 24px; border: 1px solid rgba(229, 62, 62, 0.4); background: rgba(229, 62, 62, 0.04);">
+        <h2 style="font-size: 16px; margin: 0 0 8px; font-weight: 800; color: #e53e3e; display: flex; align-items: center; gap: 8px;">
+          <i class="fa-solid fa-triangle-exclamation"></i> Zona de Peligro — Reset de Base de Datos
+        </h2>
+        <p style="font-size: 13px; color: var(--text-secondary); margin-bottom: 16px; line-height: 1.5;">
+          Esta opción vacía permanentemente todos los registros de horas, servicios, turnos en vivo e historial de pagos. 
+          <strong style="color: var(--text-primary);">Las cuentas de usuario y el acceso al portal NO se borrarán.</strong>
+        </p>
+        <button onclick="abrirModalLimpiarBDD()" class="login-btn" type="button" style="background: #e53e3e; border: none; padding: 10px 18px; border-radius: 8px; font-weight: 800; display: inline-flex; align-items: center; gap: 8px; cursor: pointer;">
+          <i class="fa-solid fa-trash-can"></i> Limpiar Registros de la BDD
+        </button>
+      </div>
+
     </div>
 
   </div>
@@ -815,6 +830,31 @@
         <div id="forcePassError" class="error-message hidden" style="color: #e53e3e; font-size: 12px; margin-bottom: 12px; font-weight: 600;"></div>
         <button type="submit" class="login-btn" style="width: 100%; padding: 12px; display: flex; align-items: center; justify-content: center; gap: 8px; font-weight: 800;">
           <i class="fa-solid fa-lock"></i> Guardar Nueva Contraseña
+        </button>
+      </form>
+<!-- Modal Confirmar Limpieza de BDD -->
+<div id="purgeDataModal" class="modal-backdrop hidden" style="z-index: 99999;">
+  <div class="modal-content card" style="max-width: 460px; width: 92%; padding: 24px; border: 1px solid rgba(229, 62, 62, 0.4);">
+    <div class="modal-header" style="border-bottom: 1px solid var(--border); padding-bottom: 12px; margin-bottom: 16px;">
+      <h2 style="font-size: 18px; font-weight: 800; margin: 0; color: #e53e3e; display: flex; align-items: center; gap: 8px;">
+        <i class="fa-solid fa-triangle-exclamation"></i> Confirmar Limpieza de BDD
+      </h2>
+      <button class="close-btn" type="button" onclick="cerrarModalLimpiarBDD()">&times;</button>
+    </div>
+    <div class="modal-body">
+      <p style="font-size: 13px; color: var(--text-secondary); margin-bottom: 14px; line-height: 1.5;">
+        ¿Estás seguro de vaciar todos los registros de horas, trabajos y pagos?
+        <br><br>
+        <span style="color: #2cd499; font-weight: 700;">✅ Se mantendrán intactas las cuentas de usuario y contraseñas.</span>
+      </p>
+      <p style="font-size: 12px; font-weight: 800; color: var(--text-primary); margin-bottom: 8px;">
+        Para confirmar, escribe la palabra <strong style="color:#e53e3e;">BORRAR</strong> abajo:
+      </p>
+      <form id="purgeForm" onsubmit="handlePurgeSubmit(event)">
+        <input type="text" id="purgeConfirmInput" placeholder="Escribe BORRAR" required autocomplete="off" style="width: 100%; padding: 10px 12px; border: 1px solid var(--border); background: var(--surface-1); color: var(--text-primary); border-radius: 8px; font-size: 13px; outline: none; margin-bottom: 14px;">
+        <div id="purgeError" class="error-message hidden" style="color: #e53e3e; font-size: 12px; margin-bottom: 12px; font-weight: 600;"></div>
+        <button type="submit" id="purgeSubmitBtn" class="login-btn" style="width: 100%; background: #e53e3e; padding: 12px; display: flex; align-items: center; justify-content: center; gap: 8px; font-weight: 800;">
+          <i class="fa-solid fa-trash-can"></i> Confirmar y Eliminar Registros
         </button>
       </form>
     </div>
@@ -1754,6 +1794,40 @@ function cerrarDetallesModal() {
 function handleBackdropClick(e) {
   if (e.target.id === "detailsModal") {
     cerrarDetallesModal();
+  }
+}
+
+function abrirModalLimpiarBDD() {
+  document.getElementById("purgeConfirmInput").value = "";
+  document.getElementById("purgeError").classList.add("hidden");
+  document.getElementById("purgeDataModal").classList.remove("hidden");
+}
+
+function cerrarModalLimpiarBDD() {
+  document.getElementById("purgeDataModal").classList.add("hidden");
+}
+
+async function handlePurgeSubmit(e) {
+  e.preventDefault();
+  const confirmTxt = document.getElementById("purgeConfirmInput").value.trim();
+  const errorEl = document.getElementById("purgeError");
+  if (confirmTxt !== "BORRAR") {
+    errorEl.textContent = "Debes escribir exactamente la palabra BORRAR en mayúsculas.";
+    errorEl.classList.remove("hidden");
+    return;
+  }
+  
+  try {
+    const res = await fetch("/api/admin/limpiar-bdd", { method: "POST" });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || "Error al limpiar la base de datos");
+    
+    alert("✅ Base de datos limpiada exitosamente. Se borraron todos los registros y se mantuvieron intactas las cuentas de usuario.");
+    cerrarModalLimpiarBDD();
+    cargarDatosReales();
+  } catch (err) {
+    errorEl.textContent = err.message;
+    errorEl.classList.remove("hidden");
   }
 }
 

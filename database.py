@@ -508,3 +508,9 @@ async def finalizar_turno(discord_id: str):
         return None
     await _execute("DELETE FROM turnos_activos WHERE discord_id = ?", (discord_id,))
     return activo
+
+
+async def limpiar_registros_bdd():
+    await _execute("DELETE FROM registros")
+    await _execute("DELETE FROM pagos_realizados")
+    await _execute("DELETE FROM turnos_activos")

@@ -318,6 +318,18 @@ async def handle_editar_usuario(request):
         return web.json_response({"error": str(e)}, status=500)
 
 
+async def handle_limpiar_bdd(request):
+    user = request["user"]
+    if user["rol"] != "superadmin":
+        return web.json_response({"error": "Solo el SuperAdmin puede realizar esta acción"}, status=403)
+        
+    try:
+        await db.limpiar_registros_bdd()
+        return web.json_response({"success": True, "mensaje": "Se borraron todos los registros manteniendo intactas las cuentas de usuario."})
+    except Exception as e:
+        return web.json_response({"error": str(e)}, status=500)
+
+
 async def auth_middleware(app, handler):
     async def middleware(request):
         public_paths = ["/", "/api/login", "/api/logout"]
@@ -356,6 +368,7 @@ async def iniciar_servidor_web():
     app.router.add_delete("/api/usuarios/{username}", handle_eliminar_usuario)
     app.router.add_put("/api/registros/{id}/anular", handle_anular_registro)
     app.router.add_put("/api/mi-password", handle_cambiar_mi_password)
+    app.router.add_post("/api/admin/limpiar-bdd", handle_limpiar_bdd)
     
     os.makedirs("uploads", exist_ok=True)
     app.router.add_static("/uploads", "uploads")
