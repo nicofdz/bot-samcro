@@ -99,6 +99,8 @@ async def handle_api_nomina(request):
                 ]
             else:
                 data[seccion_key] = []
+        turnos_activos = await db.obtener_todos_turnos_activos()
+        data["_turnos_activos"] = turnos_activos
         return web.json_response(data)
     except Exception as e:
         return web.json_response({"error": str(e)}, status=500)
@@ -119,6 +121,25 @@ async def handle_api_detalles(request):
         
         registros = await db.obtener_registros_semana(seccion_key, inicio_utc.isoformat(), fin_utc.isoformat(), solo_validados=False)
         detalles = [r for r in registros if r.get("nombre") == username or r.get("discord_id") == username]
+        
+        turnos_activos = await db.obtener_todos_turnos_activos()
+        for ta in turnos_activos:
+            if ta["nombre"] == username or ta["discord_id"] == username:
+                detalles.insert(0, {
+                    "id": "activo",
+                    "tipo": "horas",
+                    "horas": 0,
+                    "servicio_nombre": None,
+                    "monto": 0,
+                    "comision": 0,
+                    "nota": f"🟢 Turno activo en {config.SECCIONES.get(ta['seccion'], {}).get('nombre_visible', ta['seccion'])}",
+                    "foto_url": None,
+                    "validado": 2,
+                    "validado_por": None,
+                    "creado_en": ta["hora_inicio"]
+                })
+                break
+                
         return web.json_response(detalles)
     except Exception as e:
         return web.json_response({"error": str(e)}, status=500)

@@ -494,6 +494,10 @@ async def obtener_turno_activo(discord_id: str):
     return await _fetch_one("SELECT * FROM turnos_activos WHERE discord_id = ?", (discord_id,))
 
 
+async def obtener_todos_turnos_activos():
+    return await _fetch_all("SELECT * FROM turnos_activos ORDER BY hora_inicio ASC")
+
+
 async def finalizar_turno(discord_id: str):
     activo = await _fetch_one("SELECT * FROM turnos_activos WHERE discord_id = ?", (discord_id,))
     if not activo:

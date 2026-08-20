@@ -651,6 +651,22 @@
         <button class="close-btn" onclick="cerrarDetallesModal()">&times;</button>
       </div>
 
+      <!-- Alerta de Turno Activo en Curso -->
+      <div id="activeShiftAlertCard" class="hidden" style="background: rgba(44, 212, 153, 0.12); border: 1px solid #2cd499; border-radius: 10px; padding: 12px 16px; margin-top: 10px; display: flex; align-items: center; justify-content: space-between;">
+        <div style="display: flex; align-items: center; gap: 12px;">
+          <span style="background: #2cd499; color: #0f172a; width: 32px; height: 32px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 16px; font-weight: 900;">
+            <i class="fa-solid fa-play"></i>
+          </span>
+          <div>
+            <div style="font-weight: 800; color: #2cd499; font-size: 13px; display: flex; align-items: center; gap: 6px;">
+              <span>🟢 TURNO DE TRABAJO EN CURSO</span>
+            </div>
+            <div id="activeShiftAlertText" style="font-size: 12px; color: var(--text-secondary); margin-top: 2px;">Actualmente laborando en Discord...</div>
+          </div>
+        </div>
+        <span style="background: rgba(44, 212, 153, 0.2); color: #2cd499; border: 1px solid #2cd499; padding: 4px 10px; border-radius: 12px; font-size: 11px; font-weight: 800; white-space: nowrap;">EN VIVO</span>
+      </div>
+
       <!-- Tarjetas de Resumen General del Trabajador -->
       <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 12px; margin-top: 14px;">
         <!-- Total a Pagar -->
@@ -983,6 +999,8 @@ function render() {
   // KPIs
   let totalClub = 0, totalTrabajadores = 0, totalServicios = 0;
   let topSeccion = null, topTotal = -1;
+  const turnosActivosTotales = dataPorSeccion["_turnos_activos"] || [];
+  
   seccionesConDatos.forEach(key => {
     const regs = dataFiltrada[key];
     const totalSeccion = regs.reduce((s, r) => s + r.total, 0);
@@ -992,6 +1010,10 @@ function render() {
     if (totalSeccion > topTotal) { topTotal = totalSeccion; topSeccion = key; }
   });
 
+  const numTurnosActivos = (seccionSeleccionada === "consolidado")
+    ? turnosActivosTotales.length
+    : turnosActivosTotales.filter(t => t.seccion === seccionSeleccionada).length;
+
   const topSeccionLabel = topSeccion ? SECCIONES[topSeccion].label : "Ninguna";
   const topSeccionVal = topSeccion ? fmtCLP(topTotal) : "$0";
 
@@ -999,11 +1021,11 @@ function render() {
     <div class="kpi"><div class="label">Total a pagar (${seccionSeleccionada === "consolidado" ? "club" : SECCIONES[seccionSeleccionada].label})</div><div class="value">${fmtCLP(totalClub)}</div><div class="sub">${seccionesConDatos.length} secciones con datos</div></div>
     <div class="kpi"><div class="label">Trabajadores con pago</div><div class="value">${totalTrabajadores}</div></div>
     <div class="kpi"><div class="label">Servicios registrados</div><div class="value">${totalServicios}</div></div>
-    ${seccionSeleccionada === "consolidado" ? `
-    <div class="kpi"><div class="label">Sección con más gasto</div><div class="value" style="font-size:17px">${topSeccionLabel}</div><div class="sub">${topSeccionVal}</div></div>
-    ` : `
-    <div class="kpi"><div class="label">Promedio por trabajador</div><div class="value">${totalTrabajadores > 0 ? fmtCLP(totalClub / totalTrabajadores) : "$0"}</div></div>
-    `}
+    <div class="kpi" style="${numTurnosActivos > 0 ? 'border-color: rgba(44, 212, 153, 0.4);' : ''}">
+      <div class="label" style="${numTurnosActivos > 0 ? 'color: #2cd499; font-weight: 800;' : ''}"><i class="fa-solid fa-circle-dot" style="margin-right:4px;"></i> Turnos Abiertos (En Vivo)</div>
+      <div class="value" style="${numTurnosActivos > 0 ? 'color: #2cd499;' : ''}">${numTurnosActivos}</div>
+      <div class="sub">${numTurnosActivos > 0 ? 'Trabajadores laborando ahora' : 'Sin turnos abiertos'}</div>
+    </div>
   `;
 
   // Barras por sección
@@ -1041,6 +1063,11 @@ function render() {
             ? `<span style="background:rgba(230,176,15,0.18); color:#e6b00f; border:1px solid rgba(230,176,15,0.35); padding:2px 6px; border-radius:6px; font-size:10px; font-weight:800; margin-left:6px; display:inline-flex; align-items:center; gap:4px; white-space:nowrap;"><i class="fa-solid fa-crown"></i> JEFE</span>`
             : '';
 
+          const estaEnTurno = turnosActivosTotales.some(t => (t.nombre === r.nombre || t.discord_id === r.discord_id) && (key === "consolidado" || t.seccion === key));
+          const enTurnoBadge = estaEnTurno
+            ? `<span style="background:rgba(44, 212, 153, 0.15); color:#2cd499; border:1px solid #2cd499; padding:2px 6px; border-radius:6px; font-size:10px; font-weight:800; margin-left:6px; display:inline-flex; align-items:center; gap:4px; white-space:nowrap;" title="Turno iniciado actualmente en Discord"><i class="fa-solid fa-circle-dot" style="color:#2cd499;"></i> EN TURNO</span>`
+            : '';
+
           const horasBadge = (isMecanica || esJefe)
             ? (horasVal >= 10 ? `${horasVal} h <i class="fa-solid fa-circle-check" style="color:#2cd499; margin-left:4px;" title="Cumplió la meta de 10 hrs semanales"></i>` : `${horasVal} h <i class="fa-solid fa-circle-info" style="color:#e6b00f; margin-left:4px;" title="Faltan horas para sueldo base"></i>`)
             : `${horasVal} h`;
@@ -1059,7 +1086,7 @@ function render() {
           const nombreSafe = encodeURIComponent(r.nombre);
           return `
             <tr onclick="verDetallesTrabajador('${key}', '${nombreSafe}')" style="cursor: pointer;" title="Haz clic para ver registros individuales">
-              <td class="name" style="text-decoration: underline; font-weight: 600; color: var(--text-primary);">${r.nombre}${jefeBadge}</td>
+              <td class="name" style="text-decoration: underline; font-weight: 600; color: var(--text-primary);">${r.nombre}${jefeBadge}${enTurnoBadge}</td>
               <td class="num">${horasBadge}</td>
               <td class="num">${sueldoBaseCol}</td>
               <td class="num">${r.nServicios}</td>
@@ -1454,10 +1481,20 @@ async function verDetallesTrabajador(seccionKey, nombreTrabajadorRaw) {
     
     recalcularMetricasModal();
     
+    const turnoActivoItem = currentRegistrosDetalle.find(r => r.validado === 2);
+    const alertCard = document.getElementById("activeShiftAlertCard");
+    if (turnoActivoItem && alertCard) {
+      document.getElementById("activeShiftAlertText").textContent = 
+        `Entrada: ${formatFechaChile(turnoActivoItem.creado_en)} — ${turnoActivoItem.nota}`;
+      alertCard.classList.remove("hidden");
+    } else if (alertCard) {
+      alertCard.classList.add("hidden");
+    }
+
     const serviciosActivos = currentRegistrosDetalle.filter(r => r.tipo === "servicio" && r.validado !== -1);
     const horasActivas = currentRegistrosDetalle.filter(r => r.tipo !== "servicio" && r.validado !== -1);
     
-    if (serviciosActivos.length === 0 && horasActivas.length > 0) {
+    if (turnoActivoItem || (serviciosActivos.length === 0 && horasActivas.length > 0)) {
       currentDetalleTab = "horas";
     } else {
       currentDetalleTab = "trabajos";
@@ -1623,6 +1660,19 @@ function renderDetallesTab() {
     
     const tarifa = SECCIONES[currentSeccionDetalleKey]?.tarifa_hora || 0;
     bodyEl.innerHTML = turnos.map(r => {
+      if (r.validado === 2) {
+        return `
+          <tr style="border-bottom:1px solid var(--border); background: rgba(44, 212, 153, 0.05);">
+            <td style="padding:10px 8px; font-weight:700;"><span style="background:rgba(44, 212, 153, 0.18); color:#2cd499; border:1px solid #2cd499; padding:4px 8px; border-radius:6px; font-size:11px; font-weight:800; display:inline-flex; align-items:center; gap:6px; white-space:nowrap;"><i class="fa-solid fa-circle-dot" style="color:#2cd499;"></i> TURNO EN CURSO</span></td>
+            <td style="padding:10px 8px; font-weight:800; color:#2cd499;" class="num">En vivo (Abierto)</td>
+            <td style="padding:10px 8px; font-size:11px; color:var(--text-muted);" class="num">(Calculando...)</td>
+            <td style="padding:10px 8px; font-size:13px; max-width:220px; word-wrap:break-word; color:#2cd499; font-weight:600;">${r.nota}</td>
+            <td style="padding:10px 8px; text-align:center; font-size:12px; color:var(--text-secondary); white-space:nowrap;">${formatFechaChile(r.creado_en)}</td>
+            <td style="padding:10px 8px; text-align:center; font-size:11px; color:var(--text-muted); font-style:italic;">En proceso</td>
+          </tr>
+        `;
+      }
+      
       const nota = r.nota || '<span style="color:var(--text-muted); font-style:italic;">Sin nota</span>';
       const pago = fmtCLP(r.horas * tarifa);
       const fecha = formatFechaChile(r.creado_en);
