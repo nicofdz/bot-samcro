@@ -788,6 +788,9 @@ const ORDEN_SECCIONES = ["mecanica", "bar", "tatuajes", "show"];
 
 let dataPorSeccion = {}; // key -> [{nombre, horas, pagoHoras, nServicios, comisiones, total}]
 let seccionSeleccionada = null; // 'mecanica', 'bar', 'tatuajes', 'show', 'consolidado'
+let currentSeccionDetalleKey = null;
+let currentRegistrosDetalle = [];
+let currentDetalleTab = "trabajos";
 
 function seleccionarSeccion(seccionKey) {
   seccionSeleccionada = seccionKey;
@@ -1005,8 +1008,9 @@ function render() {
               : `<span style="color:var(--text-muted);" title="Requiere 10 hrs semanales para $10k sueldo base">$0</span>`;
           }
 
+          const nombreSafe = encodeURIComponent(r.nombre);
           return `
-            <tr onclick="verDetallesTrabajador('${key}', '${r.nombre}')" style="cursor: pointer;" title="Haz clic para ver registros individuales">
+            <tr onclick="verDetallesTrabajador('${key}', '${nombreSafe}')" style="cursor: pointer;" title="Haz clic para ver registros individuales">
               <td class="name" style="text-decoration: underline; font-weight: 600; color: var(--text-primary);">${r.nombre}${jefeBadge}</td>
               <td class="num">${horasBadge}</td>
               <td class="num">${sueldoBaseCol}</td>
@@ -1334,11 +1338,8 @@ if (document.getElementById("searchInput")) {
   document.getElementById("searchInput").addEventListener("input", render);
 }
 
-let currentRegistrosDetalle = [];
-let currentSeccionDetalleKey = "";
-let currentDetalleTab = "trabajos";
-
-async function verDetallesTrabajador(seccionKey, nombreTrabajador) {
+async function verDetallesTrabajador(seccionKey, nombreTrabajadorRaw) {
+  const nombreTrabajador = decodeURIComponent(nombreTrabajadorRaw);
   if (window.location.protocol === "file:") {
     alert("El desglose detallado e imágenes de respaldo solo están disponibles cuando usas el bot en vivo en el servidor web, no en el archivo CSV local.");
     return;
