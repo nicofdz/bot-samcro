@@ -283,10 +283,24 @@ async def aprobar_por_mensaje(mensaje_id: str, aprobado_por: str):
     return row
 
 
+async def obtener_registro_por_id(registro_id: int):
+    return await _fetch_one("SELECT * FROM registros WHERE id = ?", (registro_id,))
+
+
+async def anular_registro(registro_id: int, anulado_por: str = "admin"):
+    await _execute("UPDATE registros SET validado = -1, validado_por = ? WHERE id = ?", (anulado_por, registro_id))
+    return await _fetch_one("SELECT * FROM registros WHERE id = ?", (registro_id,))
+
+
+async def restaurar_registro(registro_id: int, restaurado_por: str = "admin"):
+    await _execute("UPDATE registros SET validado = 1, validado_por = ? WHERE id = ?", (restaurado_por, registro_id))
+    return await _fetch_one("SELECT * FROM registros WHERE id = ?", (registro_id,))
+
+
 async def obtener_registros_semana(seccion: str, inicio_iso: str, fin_iso: str,
                                     discord_id: str = None, solo_validados: bool = True):
-    query = """SELECT discord_id, nombre, tipo, horas, servicio_nombre, monto, comision, creado_en,
-                      foto_url, validado
+    query = """SELECT id, discord_id, nombre, tipo, horas, servicio_nombre, monto, comision, nota,
+                      foto_url, validado, validado_por, creado_en
                FROM registros
                WHERE seccion = ? AND creado_en >= ? AND creado_en < ?"""
     params = [seccion, inicio_iso, fin_iso]

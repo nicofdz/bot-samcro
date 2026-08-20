@@ -117,9 +117,34 @@ async def handle_api_detalles(request):
             
         inicio_utc, fin_utc, _, _ = rango_semana_actual()
         
-        registros = await db.obtener_registros_semana(seccion_key, inicio_utc.isoformat(), fin_utc.isoformat(), solo_validados=True)
+        registros = await db.obtener_registros_semana(seccion_key, inicio_utc.isoformat(), fin_utc.isoformat(), solo_validados=False)
         detalles = [r for r in registros if r.get("nombre") == username or r.get("discord_id") == username]
         return web.json_response(detalles)
+    except Exception as e:
+        return web.json_response({"error": str(e)}, status=500)
+
+
+async def handle_anular_registro(request):
+    try:
+        user = request["user"]
+        registro_id = int(request.match_info.get("id"))
+        payload = await request.json()
+        anular = payload.get("anular", True)
+        
+        reg = await db.obtener_registro_por_id(registro_id)
+        if not reg:
+            return web.json_response({"error": "Registro no encontrado"}, status=404)
+            
+        user_permisos = json.loads(user["permisos"])
+        if not (reg["seccion"] in user_permisos or "consolidado" in user_permisos):
+            return web.json_response({"error": "No autorizado para esta sección"}, status=403)
+            
+        if anular:
+            res = await db.anular_registro(registro_id, user["username"])
+        else:
+            res = await db.restaurar_registro(registro_id, user["username"])
+            
+        return web.json_response({"success": True, "registro": res})
     except Exception as e:
         return web.json_response({"error": str(e)}, status=500)
 
@@ -289,6 +314,7 @@ async def iniciar_servidor_web():
     app.router.add_post("/api/usuarios", handle_crear_usuario)
     app.router.add_put("/api/usuarios/{username}", handle_editar_usuario)
     app.router.add_delete("/api/usuarios/{username}", handle_eliminar_usuario)
+    app.router.add_put("/api/registros/{id}/anular", handle_anular_registro)
     
     os.makedirs("uploads", exist_ok=True)
     app.router.add_static("/uploads", "uploads")

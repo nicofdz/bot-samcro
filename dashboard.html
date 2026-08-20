@@ -697,8 +697,7 @@
         </div>
       </div>
 
-      <!-- Selector de Opciones: Trabajos vs Horas Trabajadas -->
-      <div style="display: flex; gap: 10px; margin-top: 14px;">
+      <div style="display: flex; gap: 10px; margin-top: 14px; flex-wrap: wrap;">
         <button id="tabTrabajosBtn" onclick="switchDetallesTab('trabajos')" style="padding: 8px 16px; border-radius: 8px; font-weight: 700; font-size: 13px; cursor: pointer; border: 1px solid var(--border); background: var(--surface-1); color: var(--text-primary); transition: all 0.2s; display: flex; align-items: center; gap: 8px;">
           <i class="fa-solid fa-screwdriver-wrench" style="color: #4da0ff;"></i> <span>Ver Trabajos / Servicios</span>
           <span id="countTrabajosBadge" style="background: rgba(77, 160, 255, 0.2); color: #4da0ff; padding: 2px 8px; border-radius: 12px; font-size: 11px; font-weight: 800;">0</span>
@@ -706,6 +705,10 @@
         <button id="tabHorasBtn" onclick="switchDetallesTab('horas')" style="padding: 8px 16px; border-radius: 8px; font-weight: 700; font-size: 13px; cursor: pointer; border: 1px solid var(--border); background: var(--surface-1); color: var(--text-primary); transition: all 0.2s; display: flex; align-items: center; gap: 8px;">
           <i class="fa-solid fa-clock" style="color: #e6b00f;"></i> <span>Ver Horas Trabajadas</span>
           <span id="countHorasBadge" style="background: rgba(230, 176, 15, 0.2); color: #e6b00f; padding: 2px 8px; border-radius: 12px; font-size: 11px; font-weight: 800;">0</span>
+        </button>
+        <button id="tabAnuladosBtn" onclick="switchDetallesTab('anulados')" style="padding: 8px 16px; border-radius: 8px; font-weight: 700; font-size: 13px; cursor: pointer; border: 1px solid var(--border); background: var(--surface-1); color: var(--text-primary); transition: all 0.2s; display: flex; align-items: center; gap: 8px;">
+          <i class="fa-solid fa-ban" style="color: #f56565;"></i> <span>Anulados</span>
+          <span id="countAnuladosBadge" style="background: rgba(245, 101, 101, 0.2); color: #f56565; padding: 2px 8px; border-radius: 12px; font-size: 11px; font-weight: 800;">0</span>
         </button>
       </div>
     </div>
@@ -1392,34 +1395,12 @@ async function verDetallesTrabajador(seccionKey, nombreTrabajador) {
     if (!res.ok) throw new Error("No se pudo obtener el detalle");
     currentRegistrosDetalle = await res.json();
     
-    const tarifa = SECCIONES[seccionKey]?.tarifa_hora || 0;
-    let totalHoras = 0;
-    let totalPagoHoras = 0;
-    let totalServiciosCount = 0;
-    let totalComisiones = 0;
-
-    currentRegistrosDetalle.forEach(r => {
-      if (r.tipo === "servicio") {
-        totalServiciosCount++;
-        totalComisiones += (r.comision || 0);
-      } else {
-        totalHoras += (r.horas || 0);
-        totalPagoHoras += ((r.horas || 0) * tarifa);
-      }
-    });
-
-    const granTotal = totalPagoHoras + totalComisiones;
-
-    document.getElementById("modalMetricTotal").textContent = fmtCLP(granTotal);
-    document.getElementById("modalMetricPagoHoras").textContent = fmtCLP(totalPagoHoras);
-    document.getElementById("modalMetricHoras").textContent = `${totalHoras.toFixed(2)} h`;
-    document.getElementById("modalMetricComisiones").textContent = fmtCLP(totalComisiones);
-    document.getElementById("modalMetricTrabajos").textContent = `${totalServiciosCount} serv.`;
-
-    document.getElementById("countTrabajosBadge").textContent = totalServiciosCount;
-    document.getElementById("countHorasBadge").textContent = `${totalHoras.toFixed(2)} h`;
+    recalcularMetricasModal();
     
-    if (totalServiciosCount === 0 && totalHoras > 0) {
+    const serviciosActivos = currentRegistrosDetalle.filter(r => r.tipo === "servicio" && r.validado !== -1);
+    const horasActivas = currentRegistrosDetalle.filter(r => r.tipo !== "servicio" && r.validado !== -1);
+    
+    if (serviciosActivos.length === 0 && horasActivas.length > 0) {
       currentDetalleTab = "horas";
     } else {
       currentDetalleTab = "trabajos";
@@ -1427,7 +1408,66 @@ async function verDetallesTrabajador(seccionKey, nombreTrabajador) {
     
     renderDetallesTab();
   } catch (err) {
-    tbody.innerHTML = `<tr><td colspan="5" style="text-align:center; padding:20px; color:#e53e3e;">Error al cargar: ${err.message}</td></tr>`;
+    tbody.innerHTML = `<tr><td colspan="6" style="text-align:center; padding:20px; color:#e53e3e;">Error al cargar: ${err.message}</td></tr>`;
+  }
+}
+
+function recalcularMetricasModal() {
+  const tarifa = SECCIONES[currentSeccionDetalleKey]?.tarifa_hora || 0;
+  let totalHoras = 0;
+  let totalPagoHoras = 0;
+  let totalServiciosCount = 0;
+  let totalComisiones = 0;
+  let totalAnuladosCount = 0;
+
+  currentRegistrosDetalle.forEach(r => {
+    if (r.validado === -1) {
+      totalAnuladosCount++;
+    } else if (r.tipo === "servicio") {
+      totalServiciosCount++;
+      totalComisiones += (r.comision || 0);
+    } else {
+      totalHoras += (r.horas || 0);
+      totalPagoHoras += ((r.horas || 0) * tarifa);
+    }
+  });
+
+  const granTotal = totalPagoHoras + totalComisiones;
+
+  document.getElementById("modalMetricTotal").textContent = fmtCLP(granTotal);
+  document.getElementById("modalMetricPagoHoras").textContent = fmtCLP(totalPagoHoras);
+  document.getElementById("modalMetricHoras").textContent = `${totalHoras.toFixed(2)} h`;
+  document.getElementById("modalMetricComisiones").textContent = fmtCLP(totalComisiones);
+  document.getElementById("modalMetricTrabajos").textContent = `${totalServiciosCount} serv.`;
+
+  document.getElementById("countTrabajosBadge").textContent = totalServiciosCount;
+  document.getElementById("countHorasBadge").textContent = `${totalHoras.toFixed(2)} h`;
+  document.getElementById("countAnuladosBadge").textContent = totalAnuladosCount;
+}
+
+async function anularRegistro(registroId, anular) {
+  const accionTxt = anular ? "anular" : "restaurar";
+  if (!confirm(`¿Estás seguro de que deseas ${accionTxt} este registro?`)) return;
+  
+  try {
+    const res = await fetch(`/api/registros/${registroId}/anular`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ anular })
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || `Error al ${accionTxt} el registro`);
+    
+    const target = currentRegistrosDetalle.find(r => r.id === registroId);
+    if (target) {
+      target.validado = anular ? -1 : 1;
+    }
+    
+    recalcularMetricasModal();
+    renderDetallesTab();
+    if (typeof cargarDatosReales === "function") cargarDatosReales();
+  } catch (err) {
+    alert(`Error: ${err.message}`);
   }
 }
 
@@ -1441,12 +1481,20 @@ function renderDetallesTab() {
   const bodyEl = document.getElementById("detailsTableBody");
   const trabajosBtn = document.getElementById("tabTrabajosBtn");
   const horasBtn = document.getElementById("tabHorasBtn");
+  const anuladosBtn = document.getElementById("tabAnuladosBtn");
+
+  [trabajosBtn, horasBtn, anuladosBtn].forEach(btn => {
+    if (btn) {
+      btn.style.background = "var(--surface-1)";
+      btn.style.borderColor = "var(--border)";
+    }
+  });
   
   if (currentDetalleTab === "trabajos") {
-    trabajosBtn.style.background = "rgba(77, 160, 255, 0.15)";
-    trabajosBtn.style.borderColor = "#4da0ff";
-    horasBtn.style.background = "var(--surface-1)";
-    horasBtn.style.borderColor = "var(--border)";
+    if (trabajosBtn) {
+      trabajosBtn.style.background = "rgba(77, 160, 255, 0.15)";
+      trabajosBtn.style.borderColor = "#4da0ff";
+    }
     
     headEl.innerHTML = `
       <tr style="border-bottom: 2px solid var(--border); text-align: left;">
@@ -1456,12 +1504,13 @@ function renderDetallesTab() {
         <th style="padding: 10px 8px; color: var(--text-secondary); font-size: 11px; text-transform: uppercase;" class="num">Comisión Ganada</th>
         <th style="padding: 10px 8px; color: var(--text-secondary); font-size: 11px; text-transform: uppercase;">Nota</th>
         <th style="padding: 10px 8px; color: var(--text-secondary); font-size: 11px; text-transform: uppercase; text-align: center;">Captura / Respaldo</th>
+        <th style="padding: 10px 8px; color: var(--text-secondary); font-size: 11px; text-transform: uppercase; text-align: center;">Acción</th>
       </tr>
     `;
     
-    const servicios = currentRegistrosDetalle.filter(r => r.tipo === "servicio");
+    const servicios = currentRegistrosDetalle.filter(r => r.tipo === "servicio" && r.validado !== -1);
     if (servicios.length === 0) {
-      bodyEl.innerHTML = '<tr><td colspan="6" style="text-align:center; padding:24px; color:var(--text-muted);">No hay trabajos ni servicios registrados esta semana.</td></tr>';
+      bodyEl.innerHTML = '<tr><td colspan="7" style="text-align:center; padding:24px; color:var(--text-muted);">No hay trabajos ni servicios activos registrados esta semana.</td></tr>';
       return;
     }
     
@@ -1485,15 +1534,18 @@ function renderDetallesTab() {
           <td style="padding:10px 8px; font-weight:700; color:#2cd499;" class="num">${fmtCLP(r.comision)}</td>
           <td style="padding:10px 8px; font-size:13px; max-width:180px; word-wrap:break-word;">${nota}</td>
           <td style="padding:10px 8px; text-align:center;">${captura}</td>
+          <td style="padding:10px 8px; text-align:center;">
+            <button onclick="anularRegistro(${r.id}, true)" style="background:rgba(245,101,101,0.15); color:#f56565; border:1px solid rgba(245,101,101,0.3); font-size:11px; border-radius:6px; padding:4px 8px; font-weight:700; cursor:pointer;" title="Anular este trabajo"><i class="fa-solid fa-ban"></i> Anular</button>
+          </td>
         </tr>
       `;
     }).join("");
     
-  } else {
-    horasBtn.style.background = "rgba(230, 176, 15, 0.15)";
-    horasBtn.style.borderColor = "#e6b00f";
-    trabajosBtn.style.background = "var(--surface-1)";
-    trabajosBtn.style.borderColor = "var(--border)";
+  } else if (currentDetalleTab === "horas") {
+    if (horasBtn) {
+      horasBtn.style.background = "rgba(230, 176, 15, 0.15)";
+      horasBtn.style.borderColor = "#e6b00f";
+    }
     
     headEl.innerHTML = `
       <tr style="border-bottom: 2px solid var(--border); text-align: left;">
@@ -1502,12 +1554,13 @@ function renderDetallesTab() {
         <th style="padding: 10px 8px; color: var(--text-secondary); font-size: 11px; text-transform: uppercase;" class="num">Pago Estimado</th>
         <th style="padding: 10px 8px; color: var(--text-secondary); font-size: 11px; text-transform: uppercase;">Nota / Observación</th>
         <th style="padding: 10px 8px; color: var(--text-secondary); font-size: 11px; text-transform: uppercase; text-align: center;">Fecha</th>
+        <th style="padding: 10px 8px; color: var(--text-secondary); font-size: 11px; text-transform: uppercase; text-align: center;">Acción</th>
       </tr>
     `;
     
-    const turnos = currentRegistrosDetalle.filter(r => r.tipo !== "servicio");
+    const turnos = currentRegistrosDetalle.filter(r => r.tipo !== "servicio" && r.validado !== -1);
     if (turnos.length === 0) {
-      bodyEl.innerHTML = '<tr><td colspan="5" style="text-align:center; padding:24px; color:var(--text-muted);">No hay turnos ni horas registradas esta semana.</td></tr>';
+      bodyEl.innerHTML = '<tr><td colspan="6" style="text-align:center; padding:24px; color:var(--text-muted);">No hay turnos ni horas activas registradas esta semana.</td></tr>';
       return;
     }
     
@@ -1523,6 +1576,57 @@ function renderDetallesTab() {
           <td style="padding:10px 8px; font-weight:700; color:#2cd499;" class="num">${pago}</td>
           <td style="padding:10px 8px; font-size:13px; max-width:220px; word-wrap:break-word;">${nota}</td>
           <td style="padding:10px 8px; text-align:center; font-size:12px; color:var(--text-secondary);">${fecha}</td>
+          <td style="padding:10px 8px; text-align:center;">
+            <button onclick="anularRegistro(${r.id}, true)" style="background:rgba(245,101,101,0.15); color:#f56565; border:1px solid rgba(245,101,101,0.3); font-size:11px; border-radius:6px; padding:4px 8px; font-weight:700; cursor:pointer;" title="Anular este turno"><i class="fa-solid fa-ban"></i> Anular</button>
+          </td>
+        </tr>
+      `;
+    }).join("");
+
+  } else if (currentDetalleTab === "anulados") {
+    if (anuladosBtn) {
+      anuladosBtn.style.background = "rgba(245, 101, 101, 0.15)";
+      anuladosBtn.style.borderColor = "#f56565";
+    }
+
+    headEl.innerHTML = `
+      <tr style="border-bottom: 2px solid var(--border); text-align: left;">
+        <th style="padding: 10px 8px; color: var(--text-secondary); font-size: 11px; text-transform: uppercase;">Registro Anulado</th>
+        <th style="padding: 10px 8px; color: var(--text-secondary); font-size: 11px; text-transform: uppercase;" class="num">Monto / Tiempo</th>
+        <th style="padding: 10px 8px; color: var(--text-secondary); font-size: 11px; text-transform: uppercase;" class="num">Comisión Descontada</th>
+        <th style="padding: 10px 8px; color: var(--text-secondary); font-size: 11px; text-transform: uppercase;">Nota</th>
+        <th style="padding: 10px 8px; color: var(--text-secondary); font-size: 11px; text-transform: uppercase; text-align: center;">Anulado por</th>
+        <th style="padding: 10px 8px; color: var(--text-secondary); font-size: 11px; text-transform: uppercase; text-align: center;">Acción</th>
+      </tr>
+    `;
+
+    const anulados = currentRegistrosDetalle.filter(r => r.validado === -1);
+    if (anulados.length === 0) {
+      bodyEl.innerHTML = '<tr><td colspan="6" style="text-align:center; padding:24px; color:var(--text-muted);">No hay trabajos ni turnos anulados para este trabajador.</td></tr>';
+      return;
+    }
+
+    bodyEl.innerHTML = anulados.map(r => {
+      const isServicio = r.tipo === "servicio";
+      const titulo = isServicio ? (r.servicio_nombre || "Servicio") : "Turno de trabajo";
+      const montoTiempo = isServicio ? fmtCLP(r.monto) : `${r.horas} h`;
+      const comisionDescontada = isServicio ? fmtCLP(r.comision) : "$0";
+      const nota = r.nota || '<span style="color:var(--text-muted); font-style:italic;">Sin nota</span>';
+      const anuladoPor = r.validado_por || "Admin";
+
+      return `
+        <tr style="border-bottom:1px solid var(--border); opacity: 0.85;">
+          <td style="padding:10px 8px; font-weight:700; color:#f56565;">
+            <span style="background:rgba(245,101,101,0.15); color:#f56565; border:1px solid rgba(245,101,101,0.3); padding:2px 8px; border-radius:6px; font-size:11px; margin-right:6px;">🚫 ANULADO</span>
+            ${titulo}
+          </td>
+          <td style="padding:10px 8px;" class="num">${montoTiempo}</td>
+          <td style="padding:10px 8px; font-weight:700; color:#f56565;" class="num">-${comisionDescontada}</td>
+          <td style="padding:10px 8px; font-size:13px; max-width:180px; word-wrap:break-word;">${nota}</td>
+          <td style="padding:10px 8px; text-align:center; font-size:12px; color:var(--text-secondary);">${anuladoPor}</td>
+          <td style="padding:10px 8px; text-align:center;">
+            <button onclick="anularRegistro(${r.id}, false)" style="background:rgba(44,212,153,0.15); color:#2cd499; border:1px solid rgba(44,212,153,0.3); font-size:11px; border-radius:6px; padding:4px 8px; font-weight:700; cursor:pointer;" title="Restaurar este registro al estado activo"><i class="fa-solid fa-rotate-left"></i> Restaurar</button>
+          </td>
         </tr>
       `;
     }).join("");
