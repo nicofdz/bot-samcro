@@ -34,14 +34,14 @@ de tu servidor.
 SECCIONES = {
     "mecanica": {
         "nombre_visible": "🔧 Mecánica",
-        "rol_jefe": ["Jefe de Mecánico", "Jefe Mecánica", "Enc. de Mecánico"],
+        "rol_jefe": ["Encargado de mecanicos", "Jefe Mecanicos", "Jefe de Mecánico", "Jefe Mecánica", "Enc. de Mecánico"],
         "tarifa_hora": 0,
         "comision_servicio": 0.30,
         "usa_sueldo_base": True,
     },
     "bar": {
         "nombre_visible": "🍺 Bar / Comida",
-        "rol_jefe": ["Jefe de Barra", "Jefe Bar", "Enc. de BAR"],
+        "rol_jefe": ["Jefe Bar", "Jefe de Barra", "Enc. de BAR"],
         "tarifa_hora": 0,
         "comision_servicio": 0.40,
         "usa_sueldo_base": False,
@@ -55,7 +55,7 @@ SECCIONES = {
     },
     "show": {
         "nombre_visible": "💃 Bailarinas / Show",
-        "rol_jefe": ["Jefa de Bailarinas", "Jefe Show"],
+        "rol_jefe": ["Jefe Bailarina", "Jefa de Bailarinas", "Jefe Show"],
         "tarifa_hora": 0,
         "comision_servicio": 0.35,
         "usa_sueldo_base": False,
@@ -77,15 +77,20 @@ PORCENTAJES_JEFE = {
 # Porcentaje de comisión por servicio según el rol del trabajador en Discord
 PORCENTAJE_COMISION_POR_ROL = {
     # Mecánica
+    "Encargado de mecanicos": 0.40,
+    "Jefe Mecanicos": 0.40,
     "Jefe de Mecánico": 0.40,
     "Jefe Mecánica": 0.40,
     "Enc. de Mecánico": 0.40,
+    "Mecanico Experto": 0.40,
     "Mecánico Experto": 0.40,
-    "Mecánico Avanzado": 0.35,
+    "Mecanico Intermedio": 0.35,
     "Mecánico Intermedio": 0.35,
-    "Mecánico Principiante": 0.30,
+    "Mecanico Novato": 0.30,
+    "Mecanico a Prueba": 0.30,
     "Mecánico Practicante": 0.30,
     "Mecánico": 0.30,
+    "Trabajador": 0.30,
 
     # Tattoo
     "Jefe Tatuador": 0.40,
@@ -94,12 +99,13 @@ PORCENTAJE_COMISION_POR_ROL = {
     "Tatuador": 0.30,
 
     # Barra
-    "Jefe de Barra": 0.50,
     "Jefe Bar": 0.50,
+    "Jefe de Barra": 0.50,
     "Enc. de BAR": 0.50,
     "Bartender": 0.40,
 
     # Show
+    "Jefe Bailarina": 0.40,
     "Jefa de Bailarinas": 0.40,
     "Jefe Show": 0.40,
     "Bailarina": 0.35,
@@ -108,27 +114,37 @@ PORCENTAJE_COMISION_POR_ROL = {
 
 # Roles de TRABAJADOR habilitados para tener canal personal y registrar.
 ROLES_TRABAJADOR = [
-    "Mecánico",
+    "Trabajador",
+    "Mecanico Experto",
     "Mecánico Experto",
+    "Mecanico Intermedio",
     "Mecánico Intermedio",
+    "Mecanico Novato",
+    "Mecanico a Prueba",
     "Mecánico Practicante",
+    "Mecánico",
+    "Encargado de mecanicos",
+    "Jefe Mecanicos",
     "Jefe de Mecánico",
     "Jefe Mecánica",
     "Bartender",
-    "Jefe de Barra",
     "Jefe Bar",
+    "Jefe de Barra",
     "Tatuador",
     "Jefe Tatuador",
     "Jefe Tatuajes",
     "Bailarina",
     "Bailarín",
+    "Jefe Bailarina",
     "Jefa de Bailarinas",
     "Jefe Show",
+    "Guardia",
+    "Jefe Guardias",
     "Prospecto",
 ]
 
 # Roles de liderazgo total (ven y aprueban TODAS las áreas y la nómina completa del club).
-ROLES_LIDERAZGO = ["Dueños", "Sub Dueño", "Jefe de local", "Liderazgo SAMCRO"]
+ROLES_LIDERAZGO = ["Dueños", "Sub dueño", "Sub Dueño", "Jefe de local", "Fichame", "Liderazgo SAMCRO"]
 ROL_LIDERAZGO = ROLES_LIDERAZGO
 
 # Nombre EXACTO de la categoría donde el bot va a crear los canales
