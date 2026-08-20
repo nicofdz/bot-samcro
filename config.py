@@ -34,29 +34,29 @@ de tu servidor.
 SECCIONES = {
     "mecanica": {
         "nombre_visible": "🔧 Mecánica",
-        "rol_jefe": ["Jefe de Mecánico", "Jefe Mecánica"],
+        "rol_jefe": ["Jefe de Mecánico", "Jefe Mecánica", "Enc. de Mecánico"],
         "tarifa_hora": 0,
         "comision_servicio": 0.30,
         "usa_sueldo_base": True,
     },
     "bar": {
         "nombre_visible": "🍺 Bar / Comida",
-        "rol_jefe": ["Jefe de Barra", "Jefe Bar"],
-        "tarifa_hora": 120,
-        "comision_servicio": 0.20,
+        "rol_jefe": ["Jefe de Barra", "Jefe Bar", "Enc. de BAR"],
+        "tarifa_hora": 0,
+        "comision_servicio": 0.40,
         "usa_sueldo_base": False,
     },
     "tatuajes": {
         "nombre_visible": "🖋️ Tatuajes",
-        "rol_jefe": ["Jefe Tatuador", "Jefe Tatuajes"],
-        "tarifa_hora": 100,
-        "comision_servicio": 0.40,
+        "rol_jefe": ["Jefe Tatuador", "Jefe Tatuajes", "Enc. de Tattoo"],
+        "tarifa_hora": 0,
+        "comision_servicio": 0.30,
         "usa_sueldo_base": False,
     },
     "show": {
         "nombre_visible": "💃 Bailarinas / Show",
         "rol_jefe": ["Jefa de Bailarinas", "Jefe Show"],
-        "tarifa_hora": 100,
+        "tarifa_hora": 0,
         "comision_servicio": 0.35,
         "usa_sueldo_base": False,
     },
@@ -66,15 +66,44 @@ SUELDO_BASE_TRABAJADOR = 10000
 SUELDO_BASE_JEFE = 20000
 HORAS_MINIMAS_SUELDO_BASE = 10.0
 
+# Porcentajes de comisión para Jefaturas por sección
+PORCENTAJES_JEFE = {
+    "mecanica": 0.40,
+    "tatuajes": 0.40,
+    "bar": 0.50,
+    "show": 0.40,
+}
+
+# Porcentaje de comisión por servicio según el rol del trabajador en Discord
 PORCENTAJE_COMISION_POR_ROL = {
+    # Mecánica
     "Jefe de Mecánico": 0.40,
     "Jefe Mecánica": 0.40,
+    "Enc. de Mecánico": 0.40,
     "Mecánico Experto": 0.40,
     "Mecánico Avanzado": 0.35,
     "Mecánico Intermedio": 0.35,
     "Mecánico Principiante": 0.30,
     "Mecánico Practicante": 0.30,
     "Mecánico": 0.30,
+
+    # Tattoo
+    "Jefe Tatuador": 0.40,
+    "Jefe Tatuajes": 0.40,
+    "Enc. de Tattoo": 0.40,
+    "Tatuador": 0.30,
+
+    # Barra
+    "Jefe de Barra": 0.50,
+    "Jefe Bar": 0.50,
+    "Enc. de BAR": 0.50,
+    "Bartender": 0.40,
+
+    # Show
+    "Jefa de Bailarinas": 0.40,
+    "Jefe Show": 0.40,
+    "Bailarina": 0.35,
+    "Bailarín": 0.35,
 }
 
 # Roles de TRABAJADOR habilitados para tener canal personal y registrar.

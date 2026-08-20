@@ -80,10 +80,11 @@ async def handle_api_nomina(request):
         user_permisos = json.loads(user["permisos"])
         
         inicio_utc, fin_utc, _, _ = rango_semana_actual()
+        guild = bot.get_guild(int(GUILD_ID)) if GUILD_ID else None
         data = {}
         for seccion_key in config.SECCIONES.keys():
             if seccion_key in user_permisos or "consolidado" in user_permisos:
-                resumen = await calcular_nomina(seccion_key, inicio_utc, fin_utc, solo_validados=True)
+                resumen = await calcular_nomina(seccion_key, inicio_utc, fin_utc, solo_validados=True, guild=guild)
                 data[seccion_key] = [
                     {
                         "nombre": v["nombre"],
@@ -91,7 +92,8 @@ async def handle_api_nomina(request):
                         "pagoHoras": v["pago_horas"],
                         "nServicios": v["n_servicios"],
                         "comisiones": v["pago_comisiones"],
-                        "total": v["total"]
+                        "total": v["total"],
+                        "esJefe": v.get("es_jefe", False)
                     }
                     for v in resumen.values()
                 ]
@@ -390,7 +392,35 @@ def semana_recien_cerrada():
             fin_local.astimezone(UTC).replace(tzinfo=None), inicio_local, fin_local)
 
 
-async def calcular_nomina(seccion_key: str, inicio_utc: datetime, fin_utc: datetime, solo_validados=True):
+def es_jefe_de_seccion(member: discord.Member, seccion_key: str) -> bool:
+    if not member or not hasattr(member, "roles"):
+        return False
+    if es_liderazgo(member):
+        return True
+    roles_jefe = config.SECCIONES.get(seccion_key, {}).get("rol_jefe", [])
+    if isinstance(roles_jefe, str):
+        roles_jefe = [roles_jefe]
+    member_role_names = {r.name for r in member.roles}
+    return bool(member_role_names.intersection(roles_jefe))
+
+
+def obtener_porcentaje_comision(member: discord.Member, seccion_key: str, servicio_nombre: str = "") -> float:
+    if member and hasattr(member, "roles"):
+        if es_jefe_de_seccion(member, seccion_key):
+            return config.PORCENTAJES_JEFE.get(seccion_key, 0.40)
+        for role in member.roles:
+            if role.name in config.PORCENTAJE_COMISION_POR_ROL:
+                return config.PORCENTAJE_COMISION_POR_ROL[role.name]
+
+    if seccion_key == "tatuajes":
+        if "blackout" in (servicio_nombre or "").lower():
+            return 0.20
+        return 0.30
+
+    return config.SECCIONES.get(seccion_key, {}).get("comision_servicio", 0.30)
+
+
+async def calcular_nomina(seccion_key: str, inicio_utc: datetime, fin_utc: datetime, solo_validados=True, guild: discord.Guild = None):
     seccion = config.SECCIONES[seccion_key]
     registros = await db.obtener_registros_semana(seccion_key, inicio_utc.isoformat(), fin_utc.isoformat(),
                                                     solo_validados=solo_validados)
@@ -399,7 +429,8 @@ async def calcular_nomina(seccion_key: str, inicio_utc: datetime, fin_utc: datet
         did = r["discord_id"]
         if did not in resumen:
             resumen[did] = {"nombre": r["nombre"], "horas": 0.0, "n_servicios": 0,
-                             "monto_servicios": 0.0, "pago_horas": 0.0, "pago_comisiones": 0.0}
+                             "monto_servicios": 0.0, "pago_horas": 0.0, "pago_comisiones": 0.0,
+                             "es_jefe": False, "discord_id": did}
         if r["tipo"] == "horas":
             resumen[did]["horas"] += r["horas"]
         else:
@@ -408,30 +439,40 @@ async def calcular_nomina(seccion_key: str, inicio_utc: datetime, fin_utc: datet
             resumen[did]["pago_comisiones"] += r["comision"]
 
     for did, datos in resumen.items():
-        if seccion.get("usa_sueldo_base"):
-            # En Mecánica: Sueldo base aplica solo si cumple 10 horas trabajadas en la semana
+        member = None
+        if guild and did.isdigit():
+            member = guild.get_member(int(did))
+            if not member:
+                try:
+                    member = await guild.fetch_member(int(did))
+                except Exception:
+                    member = None
+
+        es_jefe = es_jefe_de_seccion(member, seccion_key) if member else False
+        if not es_jefe:
+            target_user = await db.obtener_usuario(datos["nombre"])
+            if target_user and target_user.get("rol") in ["superadmin", "jefe"]:
+                es_jefe = True
+
+        datos["es_jefe"] = es_jefe
+
+        if es_jefe:
             if datos["horas"] >= config.HORAS_MINIMAS_SUELDO_BASE:
-                target_user = await db.obtener_usuario(datos["nombre"])
-                if target_user and target_user.get("rol") in ["superadmin", "jefe"]:
-                    datos["pago_horas"] = float(config.SUELDO_BASE_JEFE)
-                else:
-                    datos["pago_horas"] = float(config.SUELDO_BASE_TRABAJADOR)
+                datos["pago_horas"] = float(config.SUELDO_BASE_JEFE)
+            else:
+                datos["pago_horas"] = 0.0
+        elif seccion.get("usa_sueldo_base"):
+            if datos["horas"] >= config.HORAS_MINIMAS_SUELDO_BASE:
+                datos["pago_horas"] = float(config.SUELDO_BASE_TRABAJADOR)
             else:
                 datos["pago_horas"] = 0.0
         else:
-            datos["pago_horas"] = round(datos["horas"] * seccion["tarifa_hora"], 2)
+            datos["pago_horas"] = round(datos["horas"] * seccion.get("tarifa_hora", 0), 2)
 
         datos["pago_comisiones"] = round(datos["pago_comisiones"], 2)
         datos["total"] = round(datos["pago_horas"] + datos["pago_comisiones"], 2)
+
     return resumen
-
-
-def obtener_porcentaje_comision(member: discord.Member, seccion_key: str) -> float:
-    if seccion_key == "mecanica" and hasattr(member, "roles"):
-        for role in member.roles:
-            if role.name in config.PORCENTAJE_COMISION_POR_ROL:
-                return config.PORCENTAJE_COMISION_POR_ROL[role.name]
-    return config.SECCIONES[seccion_key].get("comision_servicio", 0.30)
 
 
 def _peso(n):
@@ -625,11 +666,11 @@ class ServicioModal(discord.ui.Modal):
 
         seccion_key = self.seccion_key
         info_seccion = config.SECCIONES[seccion_key]
-        porcentaje_comision = obtener_porcentaje_comision(interaction.user, seccion_key)
+        servicio = self.servicio_input.value.strip()
+        porcentaje_comision = obtener_porcentaje_comision(interaction.user, seccion_key, servicio)
         comision = round(monto * porcentaje_comision, 2)
         auto_validado = 0 if config.REQUIERE_APROBACION else 1
         nota = self.nota_input.value.strip() or None
-        servicio = self.servicio_input.value.strip()
 
         registro_id = await db.registrar_servicio(
             str(interaction.user.id),
