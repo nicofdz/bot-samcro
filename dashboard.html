@@ -525,18 +525,7 @@
         <button class="theme-toggle" id="themeToggle" type="button"><i class="fa-solid fa-sun"></i> Modo claro</button>
       </header>
 
-      <div class="upload" id="uploadZone">
-        <div><strong id="uploadLabel">Arrastra aquí los CSV</strong> exportados con <code>/exportar-nomina</code> del bot, o haz clic para elegirlos.</div>
-        <small>Puedes subir uno o varios (uno por sección). El nombre del archivo debe empezar con "nomina_&lt;seccion&gt;_..." tal como lo genera el bot.</small>
-        <input type="file" id="fileInput" accept=".csv" multiple>
-      </div>
-
-      <div class="actions">
-        <button class="btn" id="demoBtn" type="button">Ver con datos de ejemplo</button>
-        <button class="btn hidden" id="clearBtn" type="button">Limpiar datos</button>
-      </div>
-
-      <div id="dashboard" class="hidden">
+      <div id="dashboard">
         <div class="card filter-card" style="margin-bottom: 16px;">
           <input type="text" id="searchInput" placeholder="Buscar trabajador por nombre..." style="width: 100%; padding: 12px 14px; border: 1px solid var(--border); background: var(--surface-1); color: var(--text-primary); border-radius: 8px; font-size: 13px; outline: none;">
         </div>
@@ -553,7 +542,7 @@
       </div>
 
       <footer id="footerNote">
-        Sin datos cargados todavía. Esta página no envía nada a ningún servidor — todo se procesa en tu navegador y se pierde al recargar, así que exporta de nuevo cada semana desde Discord con <code>/exportar-nomina</code>.
+        <i class="fa-solid fa-database" style="color: #2cd499; margin-right: 6px;"></i> Conectado directamente a la base de datos de SAMCRO. Todos los turnos y servicios registrados en Discord se sincronizan en tiempo real.
       </footer>
     </div>
 
@@ -916,23 +905,23 @@ function render() {
 
   const seccionesConDatos = seccionesFiltradas.filter(k => dataPorSeccion[k]);
 
-  // Si no hay datos, ocultamos el panel del dashboard pero dejamos la zona de carga visible
+  // Si no hay datos registrados en esta sección
   if (seccionesConDatos.length === 0) {
-    document.getElementById("dashboard").classList.add("hidden");
-    document.getElementById("clearBtn").classList.add("hidden");
-    
-    if (seccionSeleccionada !== "consolidado") {
-      document.getElementById("uploadLabel").innerHTML = 
-        `Arrastra aquí el CSV de <strong>${SECCIONES[seccionSeleccionada].label}</strong> o haz clic para seleccionarlo.`;
-    } else {
-      document.getElementById("uploadLabel").innerHTML = 
-        "Arrastra aquí los CSV exportados con <code>/exportar-nomina</code> del bot, o haz clic para elegirlos.";
-    }
+    document.getElementById("kpis").innerHTML = `
+      <div class="kpi"><div class="label">Total a pagar</div><div class="value">$0</div></div>
+      <div class="kpi"><div class="label">Trabajadores con pago</div><div class="value">0</div></div>
+      <div class="kpi"><div class="label">Servicios registrados</div><div class="value">0</div></div>
+    `;
+    document.getElementById("sectionBars").innerHTML = '<div style="color:var(--text-muted); padding:10px;">Sin registros esta semana.</div>';
+    document.getElementById("legend").innerHTML = '';
+    document.getElementById("sectionTables").innerHTML = `
+      <div class="card" style="padding: 30px; text-align: center; color: var(--text-secondary);">
+        <i class="fa-solid fa-circle-info" style="font-size: 24px; margin-bottom: 10px; color: #4da0ff;"></i><br>
+        No hay registros activos para esta semana en <strong>${seccionSeleccionada === 'consolidado' ? 'ninguna sección' : SECCIONES[seccionSeleccionada].label}</strong>.<br>
+        <small style="color: var(--text-muted); display: inline-block; margin-top: 6px;">Los turnos y servicios registrados desde Discord aparecerán aquí automáticamente en tiempo real.</small>
+      </div>`;
     return;
   }
-
-  document.getElementById("dashboard").classList.remove("hidden");
-  document.getElementById("clearBtn").classList.remove("hidden");
 
   // Filtrar los datos locales para la vista actual
   const dataFiltrada = {};
@@ -1047,33 +1036,7 @@ function render() {
   }).join("");
 }
 
-// ---------- Eventos ----------
-const uploadZone = document.getElementById("uploadZone");
-const fileInput = document.getElementById("fileInput");
 
-uploadZone.addEventListener("click", () => fileInput.click());
-["dragenter", "dragover"].forEach(evt =>
-  uploadZone.addEventListener(evt, e => { e.preventDefault(); uploadZone.classList.add("drag"); }));
-["dragleave", "drop"].forEach(evt =>
-  uploadZone.addEventListener(evt, e => { e.preventDefault(); uploadZone.classList.remove("drag"); }));
-uploadZone.addEventListener("drop", e => handleFiles(e.dataTransfer.files));
-fileInput.addEventListener("change", e => handleFiles(e.target.files));
-
-function handleFiles(files) {
-  Array.from(files).forEach(file => {
-    const seccion = detectarSeccion(file.name);
-    const reader = new FileReader();
-    reader.onload = e => {
-      if (!seccion) {
-        alert(`No pude reconocer la sección del archivo "${file.name}". Renómbralo empezando con nomina_mecanica, nomina_bar, nomina_tatuajes o nomina_show.`);
-        return;
-      }
-      cargarCSV(seccion, e.target.result);
-      render();
-    };
-    reader.readAsText(file);
-  });
-}
 let usuarioLogueado = null; // { username, rol, permisos }
 
 async function cargarDatosReales() {
