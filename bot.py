@@ -972,16 +972,24 @@ async def on_ready():
         print(f"Super Admin '{admin_user}' creado o actualizado en la base de datos.")
 
     if GUILD_ID:
-        guild = discord.Object(id=int(GUILD_ID))
-        bot.tree.copy_global_to(guild=guild)
-        await bot.tree.sync(guild=guild)
+        try:
+            guild_id_int = int(str(GUILD_ID).strip())
+            guild = discord.Object(id=guild_id_int)
+            bot.tree.copy_global_to(guild=guild)
+            synced = await bot.tree.sync(guild=guild)
+            print(f"✅ Comandos Slash sincronizados instantáneamente al servidor {guild_id_int}: {len(synced)} comandos.")
+        except Exception as e:
+            print(f"❌ Error al sincronizar comandos al servidor: {e}")
         if not revisar_cierre_semanal.is_running():
             revisar_cierre_semanal.start()
     else:
-        await bot.tree.sync()
-        print("Aviso: GUILD_ID no está configurado, el corte semanal automático no se puede activar "
-              "(no sé en qué servidor postear).")
-    print(f"SAMCRO bot conectado como {bot.user}")
+        try:
+            synced = await bot.tree.sync()
+            print(f"✅ Comandos Slash sincronizados globalmente: {len(synced)} comandos.")
+        except Exception as e:
+            print(f"❌ Error al sincronizar comandos globales: {e}")
+            
+    print(f"SAMCRO bot conectado exitosamente como {bot.user}")
 
 
 @bot.event
