@@ -825,6 +825,26 @@ function fmtCLP(n) {
   return "$" + Math.round(n).toLocaleString("es-CL");
 }
 
+function formatFechaChile(isoStr) {
+  if (!isoStr) return "-";
+  let norm = String(isoStr);
+  if (!norm.endsWith("Z") && !norm.includes("+") && !norm.includes("-", 10)) {
+    norm += "Z";
+  }
+  try {
+    return new Date(norm).toLocaleString("es-CL", {
+      timeZone: "America/Santiago",
+      day: "2-digit",
+      month: "2-digit",
+      year: "numeric",
+      hour: "2-digit",
+      minute: "2-digit"
+    });
+  } catch (e) {
+    return isoStr;
+  }
+}
+
 function colorVar(key) {
   return getComputedStyle(document.querySelector(".viz-root")).getPropertyValue(SECCIONES[key].varColor).trim();
 }
@@ -990,7 +1010,7 @@ function render() {
           const esJefe = Boolean(r.esJefe || r.es_jefe || pagoH === 20000);
 
           const jefeBadge = esJefe 
-            ? `<span style="background:rgba(230,176,15,0.18); color:#e6b00f; border:1px solid rgba(230,176,15,0.35); padding:2px 6px; border-radius:6px; font-size:10px; font-weight:800; margin-left:6px;"><i class="fa-solid fa-crown"></i> JEFE</span>`
+            ? `<span style="background:rgba(230,176,15,0.18); color:#e6b00f; border:1px solid rgba(230,176,15,0.35); padding:2px 6px; border-radius:6px; font-size:10px; font-weight:800; margin-left:6px; display:inline-flex; align-items:center; gap:4px; white-space:nowrap;"><i class="fa-solid fa-crown"></i> JEFE</span>`
             : '';
 
           const horasBadge = (isMecanica || esJefe)
@@ -1482,7 +1502,7 @@ function renderDetallesTab() {
       const nota = r.nota || '<span style="color:var(--text-muted); font-style:italic;">Sin nota</span>';
       const pct = (r.monto > 0 && r.comision > 0) ? Math.round((r.comision / r.monto) * 100) : 0;
       const pctBadge = pct > 0 
-        ? `<span style="background:rgba(44, 212, 153, 0.15); color:#2cd499; border:1px solid rgba(44, 212, 153, 0.3); padding:2px 8px; border-radius:12px; font-weight:800; font-size:11px;">${pct}%</span>`
+        ? `<span style="background:rgba(44, 212, 153, 0.15); color:#2cd499; border:1px solid rgba(44, 212, 153, 0.3); padding:2px 8px; border-radius:12px; font-weight:800; font-size:11px; display:inline-flex; align-items:center; gap:4px; white-space:nowrap;">${pct}%</span>`
         : '<span style="color:var(--text-muted); font-size:11px;">-</span>';
 
       let captura = '<span style="color:var(--text-muted); font-style:italic;">Sin captura</span>';
@@ -1532,14 +1552,14 @@ function renderDetallesTab() {
     bodyEl.innerHTML = turnos.map(r => {
       const nota = r.nota || '<span style="color:var(--text-muted); font-style:italic;">Sin nota</span>';
       const pago = fmtCLP(r.horas * tarifa);
-      const fecha = r.creado_en ? new Date(r.creado_en).toLocaleString("es-CL", { hour: "2-digit", minute: "2-digit", day: "2-digit", month: "2-digit" }) : "-";
+      const fecha = formatFechaChile(r.creado_en);
       return `
         <tr style="border-bottom:1px solid var(--border);">
-          <td style="padding:10px 8px; font-weight:700;"><span style="background:rgba(230,176,15,0.15); color:#e6b00f; border:1px solid rgba(230,176,15,0.3); padding:3px 8px; border-radius:6px; font-size:11px;"><i class="fa-solid fa-clock"></i> TURNO DE TRABAJO</span></td>
+          <td style="padding:10px 8px; font-weight:700;"><span style="background:rgba(230,176,15,0.15); color:#e6b00f; border:1px solid rgba(230,176,15,0.3); padding:4px 8px; border-radius:6px; font-size:11px; font-weight:800; display:inline-flex; align-items:center; gap:6px; white-space:nowrap;"><i class="fa-solid fa-clock"></i> TURNO DE TRABAJO</span></td>
           <td style="padding:10px 8px; font-weight:700;" class="num">${r.horas} h</td>
           <td style="padding:10px 8px; font-weight:700; color:#2cd499;" class="num">${pago}</td>
           <td style="padding:10px 8px; font-size:13px; max-width:220px; word-wrap:break-word;">${nota}</td>
-          <td style="padding:10px 8px; text-align:center; font-size:12px; color:var(--text-secondary);">${fecha}</td>
+          <td style="padding:10px 8px; text-align:center; font-size:12px; color:var(--text-secondary); white-space:nowrap;">${fecha}</td>
           <td style="padding:10px 8px; text-align:center;">
             <button onclick="anularRegistro(${r.id}, true)" style="background:rgba(245,101,101,0.15); color:#f56565; border:1px solid rgba(245,101,101,0.3); font-size:11px; border-radius:6px; padding:4px 8px; font-weight:700; cursor:pointer;" title="Anular este turno"><i class="fa-solid fa-ban"></i> Anular</button>
           </td>
@@ -1581,7 +1601,7 @@ function renderDetallesTab() {
       return `
         <tr style="border-bottom:1px solid var(--border); opacity: 0.85;">
           <td style="padding:10px 8px; font-weight:700; color:#f56565;">
-            <span style="background:rgba(245,101,101,0.15); color:#f56565; border:1px solid rgba(245,101,101,0.3); padding:2px 8px; border-radius:6px; font-size:11px; margin-right:6px;">🚫 ANULADO</span>
+            <span style="background:rgba(245,101,101,0.15); color:#f56565; border:1px solid rgba(245,101,101,0.3); padding:3px 8px; border-radius:6px; font-size:11px; font-weight:800; display:inline-flex; align-items:center; gap:4px; white-space:nowrap; margin-right:6px;">🚫 ANULADO</span>
             ${titulo}
           </td>
           <td style="padding:10px 8px;" class="num">${montoTiempo}</td>
