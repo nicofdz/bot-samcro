@@ -869,6 +869,13 @@ function fmtCLP(n) {
   return "$" + Math.round(n).toLocaleString("es-CL");
 }
 
+function fmtHoras(n) {
+  if (!n || isNaN(n)) return "0 h";
+  const num = Number(n);
+  const rounded = Math.round(num * 10) / 10;
+  return `${rounded} h`;
+}
+
 function formatFechaChile(isoStr) {
   if (!isoStr) return "-";
   let norm = String(isoStr);
@@ -1069,8 +1076,8 @@ function render() {
             : '';
 
           const horasBadge = (isMecanica || esJefe)
-            ? (horasVal >= 10 ? `${horasVal} h <i class="fa-solid fa-circle-check" style="color:#2cd499; margin-left:4px;" title="Cumplió la meta de 10 hrs semanales"></i>` : `${horasVal} h <i class="fa-solid fa-circle-info" style="color:#e6b00f; margin-left:4px;" title="Faltan horas para sueldo base"></i>`)
-            : `${horasVal} h`;
+            ? (horasVal >= 10 ? `${fmtHoras(horasVal)} <i class="fa-solid fa-circle-check" style="color:#2cd499; margin-left:4px;" title="Cumplió la meta de 10 hrs semanales"></i>` : `${fmtHoras(horasVal)} <i class="fa-solid fa-circle-info" style="color:#e6b00f; margin-left:4px;" title="Faltan horas para sueldo base"></i>`)
+            : fmtHoras(horasVal);
             
           let sueldoBaseCol = fmtCLP(pagoH);
           if (esJefe) {
@@ -1530,12 +1537,12 @@ function recalcularMetricasModal() {
 
   document.getElementById("modalMetricTotal").textContent = fmtCLP(granTotal);
   document.getElementById("modalMetricPagoHoras").textContent = fmtCLP(totalPagoHoras);
-  document.getElementById("modalMetricHoras").textContent = `${totalHoras.toFixed(2)} h`;
+  document.getElementById("modalMetricHoras").textContent = fmtHoras(totalHoras);
   document.getElementById("modalMetricComisiones").textContent = fmtCLP(totalComisiones);
   document.getElementById("modalMetricTrabajos").textContent = `${totalServiciosCount} serv.`;
 
   document.getElementById("countTrabajosBadge").textContent = totalServiciosCount;
-  document.getElementById("countHorasBadge").textContent = `${totalHoras.toFixed(2)} h`;
+  document.getElementById("countHorasBadge").textContent = fmtHoras(totalHoras);
   document.getElementById("countAnuladosBadge").textContent = totalAnuladosCount;
 }
 
@@ -1679,7 +1686,7 @@ function renderDetallesTab() {
       return `
         <tr style="border-bottom:1px solid var(--border);">
           <td style="padding:10px 8px; font-weight:700;"><span style="background:rgba(230,176,15,0.15); color:#e6b00f; border:1px solid rgba(230,176,15,0.3); padding:4px 8px; border-radius:6px; font-size:11px; font-weight:800; display:inline-flex; align-items:center; gap:6px; white-space:nowrap;"><i class="fa-solid fa-clock"></i> TURNO DE TRABAJO</span></td>
-          <td style="padding:10px 8px; font-weight:700;" class="num">${r.horas} h</td>
+          <td style="padding:10px 8px; font-weight:700;" class="num">${fmtHoras(r.horas)}</td>
           <td style="padding:10px 8px; font-weight:700; color:#2cd499;" class="num">${pago}</td>
           <td style="padding:10px 8px; font-size:13px; max-width:220px; word-wrap:break-word;">${nota}</td>
           <td style="padding:10px 8px; text-align:center; font-size:12px; color:var(--text-secondary); white-space:nowrap;">${fecha}</td>
