@@ -861,6 +861,22 @@
           <i class="fa-solid fa-trash-can"></i> Confirmar y Eliminar Registros
         </button>
       </form>
+<!-- Modal Vista Previa de Imagen / Captura -->
+<div id="imagePreviewModal" class="modal-backdrop hidden" style="z-index: 100000;" onclick="cerrarImagenModal()">
+  <div class="modal-content card" style="max-width: 90vw; max-height: 90vh; width: auto; padding: 20px; text-align: center; background: rgba(18, 20, 26, 0.95); backdrop-filter: blur(12px); border: 1px solid var(--border); border-radius: 16px;" onclick="event.stopPropagation()">
+    <div class="modal-header" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px; border-bottom: 1px solid var(--border); padding-bottom: 10px;">
+      <h3 id="imageModalTitle" style="font-size: 16px; font-weight: 700; margin: 0; color: var(--text-primary); display: flex; align-items: center; gap: 8px;">
+        <i class="fa-solid fa-image" style="color: #4da0ff;"></i> Respaldo de Servicio
+      </h3>
+      <div style="display: flex; align-items: center; gap: 14px;">
+        <a id="imageModalExternalLink" href="#" target="_blank" style="color: #4da0ff; font-size: 12px; font-weight: 700; text-decoration: none; display: flex; align-items: center; gap: 4px; background: rgba(77, 160, 255, 0.1); padding: 4px 10px; border-radius: 6px; border: 1px solid rgba(77, 160, 255, 0.3);" title="Abrir imagen original en nueva pestaña">
+          <i class="fa-solid fa-up-right-from-square"></i> Abrir original
+        </a>
+        <button class="close-btn" type="button" onclick="cerrarImagenModal()">&times;</button>
+      </div>
+    </div>
+    <div style="display: flex; justify-content: center; align-items: center; overflow: hidden; max-height: 75vh;">
+      <img id="imageModalPreviewImg" src="" alt="Captura de pantalla" style="max-width: 100%; max-height: 75vh; object-fit: contain; border-radius: 8px; box-shadow: 0 8px 32px rgba(0,0,0,0.6);">
     </div>
   </div>
 </div>
@@ -1669,7 +1685,8 @@ function renderDetallesTab() {
       let captura = '<span style="color:var(--text-muted); font-style:italic;">Sin captura</span>';
       if (r.foto_url) {
         const fullUrl = r.foto_url.startsWith("http") ? r.foto_url : window.location.origin + r.foto_url;
-        captura = `<img src="${fullUrl}" class="thumbnail-img" onclick="window.open('${fullUrl}', '_blank')" title="Hacer clic para ampliar">`;
+        const tituloSafe = (r.servicio_nombre || "Respaldo de servicio").replace(/'/g, "\\'");
+        captura = `<img src="${fullUrl}" class="thumbnail-img" onclick="abrirImagenModal('${fullUrl}', '${tituloSafe}')" title="Haz clic para ver la imagen en grande" style="cursor: pointer; width: 44px; height: 44px; object-fit: cover; border-radius: 6px; border: 1px solid var(--border); transition: transform 0.2s;">`;
       }
       return `
         <tr style="border-bottom:1px solid var(--border);">
@@ -1834,6 +1851,32 @@ async function handlePurgeSubmit(e) {
     errorEl.classList.remove("hidden");
   }
 }
+
+function abrirImagenModal(url, titulo) {
+  const modal = document.getElementById("imagePreviewModal");
+  const img = document.getElementById("imageModalPreviewImg");
+  const titleEl = document.getElementById("imageModalTitle");
+  const linkEl = document.getElementById("imageModalExternalLink");
+  
+  if (img) img.src = url;
+  if (titleEl) titleEl.innerHTML = `<i class="fa-solid fa-image" style="color: #4da0ff;"></i> ${titulo || 'Respaldo de Servicio'}`;
+  if (linkEl) linkEl.href = url;
+  if (modal) modal.classList.remove("hidden");
+}
+
+function cerrarImagenModal() {
+  const modal = document.getElementById("imagePreviewModal");
+  if (modal) modal.classList.add("hidden");
+}
+
+document.addEventListener("keydown", function(e) {
+  if (e.key === "Escape") {
+    cerrarImagenModal();
+    cerrarDetallesModal();
+    cerrarModalLimpiarBDD();
+    cerrarEditarModal();
+  }
+});
 
 // Intentar cargar datos reales del servidor web al iniciar
 cargarDatosReales();
