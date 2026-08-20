@@ -394,54 +394,6 @@ def es_jefe_de(member: discord.Member, seccion_key: str):
     return any(r.name == rol_jefe for r in member.roles)
 
 
-def obtener_secciones_permitidas(member: discord.Member) -> list[str]:
-    """Retorna las secciones ('mecanica', 'bar', 'tatuajes', 'show') a las que el miembro tiene acceso según sus roles en Discord."""
-    if not member or not hasattr(member, "roles"):
-        return list(config.SECCIONES.keys())
-
-    if es_liderazgo(member):
-        return list(config.SECCIONES.keys())
-
-    member_role_names = {r.name for r in member.roles}
-    secciones_permitidas = []
-
-    for key, sec in config.SECCIONES.items():
-        roles_jefe = sec.get("rol_jefe", [])
-        if isinstance(roles_jefe, str):
-            roles_jefe = [roles_jefe]
-
-        if member_role_names.intersection(roles_jefe):
-            secciones_permitidas.append(key)
-            continue
-
-        if key == "mecanica":
-            roles_meca = {
-                "Mecánico", "Mecanico", "Mecanico Experto", "Mecánico Experto",
-                "Mecanico Intermedio", "Mecánico Intermedio", "Mecanico Novato",
-                "Mecanico a Prueba", "Mecánico Practicante", "Encargado de mecanicos",
-                "Jefe Mecanicos", "Trabajador"
-            }
-            if member_role_names.intersection(roles_meca):
-                secciones_permitidas.append(key)
-        elif key == "tatuajes":
-            roles_tat = {"Tatuador", "Jefe Tatuador", "Jefe Tatuajes", "Enc. de Tattoo"}
-            if member_role_names.intersection(roles_tat):
-                secciones_permitidas.append(key)
-        elif key == "bar":
-            roles_bar = {"Bartender", "Jefe Bar", "Jefe de Barra", "Enc. de BAR"}
-            if member_role_names.intersection(roles_bar):
-                secciones_permitidas.append(key)
-        elif key == "show":
-            roles_show = {"Bailarina", "Bailarín", "Jefe Bailarina", "Jefa de Bailarinas", "Jefe Show"}
-            if member_role_names.intersection(roles_show):
-                secciones_permitidas.append(key)
-
-    if not secciones_permitidas:
-        return list(config.SECCIONES.keys())
-
-    return secciones_permitidas
-
-
 def es_algun_jefe(member: discord.Member):
     return es_liderazgo(member) or bool(secciones_de_jefe(member))
 
@@ -825,16 +777,6 @@ class IniciarTurnoDropdown(discord.ui.Select):
             return
 
         seccion_key = self.values[0]
-        permitidas = obtener_secciones_permitidas(interaction.user)
-        if seccion_key not in permitidas:
-            sec_permitidas_txt = ", ".join(config.SECCIONES[k]["nombre_visible"] for k in permitidas)
-            await interaction.response.send_message(
-                f"⚠️ Tu rol en Discord no te permite registrar en **{config.SECCIONES[seccion_key]['nombre_visible']}**.\n"
-                f"Tus áreas autorizadas según tu rol son: {sec_permitidas_txt}",
-                ephemeral=True
-            )
-            return
-
         now_iso = await db.iniciar_turno(str(interaction.user.id), interaction.user.display_name, seccion_key, str(interaction.channel.id))
         if not now_iso:
             activo = await db.obtener_turno_activo(str(interaction.user.id))
@@ -875,16 +817,6 @@ class HorasDropdown(discord.ui.Select):
             return
 
         seccion_key = self.values[0]
-        permitidas = obtener_secciones_permitidas(interaction.user)
-        if seccion_key not in permitidas:
-            sec_permitidas_txt = ", ".join(config.SECCIONES[k]["nombre_visible"] for k in permitidas)
-            await interaction.response.send_message(
-                f"⚠️ Tu rol en Discord no te permite registrar en **{config.SECCIONES[seccion_key]['nombre_visible']}**.\n"
-                f"Tus áreas autorizadas según tu rol son: {sec_permitidas_txt}",
-                ephemeral=True
-            )
-            return
-
         modal = HorasModal(seccion_key)
         await interaction.response.send_modal(modal)
 
@@ -910,16 +842,6 @@ class ServicioDropdown(discord.ui.Select):
             return
 
         seccion_key = self.values[0]
-        permitidas = obtener_secciones_permitidas(interaction.user)
-        if seccion_key not in permitidas:
-            sec_permitidas_txt = ", ".join(config.SECCIONES[k]["nombre_visible"] for k in permitidas)
-            await interaction.response.send_message(
-                f"⚠️ Tu rol en Discord no te permite registrar en **{config.SECCIONES[seccion_key]['nombre_visible']}**.\n"
-                f"Tus áreas autorizadas según tu rol son: {sec_permitidas_txt}",
-                ephemeral=True
-            )
-            return
-
         modal = ServicioModal(seccion_key)
         await interaction.response.send_modal(modal)
 
@@ -1219,16 +1141,6 @@ async def iniciar_turno_cmd(interaction: discord.Interaction, seccion: app_comma
         return
 
     seccion_key = seccion.value
-    permitidas = obtener_secciones_permitidas(interaction.user)
-    if seccion_key not in permitidas:
-        sec_permitidas_txt = ", ".join(config.SECCIONES[k]["nombre_visible"] for k in permitidas)
-        await interaction.response.send_message(
-            f"⚠️ Tu rol en Discord no te permite registrar en **{config.SECCIONES[seccion_key]['nombre_visible']}**.\n"
-            f"Tus áreas autorizadas según tu rol son: {sec_permitidas_txt}",
-            ephemeral=True
-        )
-        return
-
     now_iso = await db.iniciar_turno(str(interaction.user.id), interaction.user.display_name, seccion_key, str(interaction.channel.id))
     if not now_iso:
         activo = await db.obtener_turno_activo(str(interaction.user.id))
@@ -1321,16 +1233,6 @@ async def registrar_horas(interaction: discord.Interaction, seccion: app_command
         return
 
     seccion_key = seccion.value
-    permitidas = obtener_secciones_permitidas(interaction.user)
-    if seccion_key not in permitidas:
-        sec_permitidas_txt = ", ".join(config.SECCIONES[k]["nombre_visible"] for k in permitidas)
-        await interaction.response.send_message(
-            f"⚠️ Tu rol en Discord no te permite registrar en **{config.SECCIONES[seccion_key]['nombre_visible']}**.\n"
-            f"Tus áreas autorizadas según tu rol son: {sec_permitidas_txt}",
-            ephemeral=True
-        )
-        return
-
     info_seccion = config.SECCIONES[seccion_key]
     auto_validado = 0 if config.REQUIERE_APROBACION else 1
     registro_id = await db.registrar_horas(str(interaction.user.id), interaction.user.display_name, seccion_key,
@@ -1375,16 +1277,6 @@ async def registrar_servicio(interaction: discord.Interaction, seccion: app_comm
         return
 
     seccion_key = seccion.value
-    permitidas = obtener_secciones_permitidas(interaction.user)
-    if seccion_key not in permitidas:
-        sec_permitidas_txt = ", ".join(config.SECCIONES[k]["nombre_visible"] for k in permitidas)
-        await interaction.response.send_message(
-            f"⚠️ Tu rol en Discord no te permite registrar en **{config.SECCIONES[seccion_key]['nombre_visible']}**.\n"
-            f"Tus áreas autorizadas según tu rol son: {sec_permitidas_txt}",
-            ephemeral=True
-        )
-        return
-
     info_seccion = config.SECCIONES[seccion_key]
     comision = round(monto * info_seccion["comision_servicio"], 2)
     foto_url = foto.url if foto else None
