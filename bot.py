@@ -350,8 +350,8 @@ async def iniciar_servidor_web():
 
 async def custom_setup_hook():
     await db.iniciar_db()
-    admin_user = os.getenv("ADMIN_USERNAME", "admin")
-    admin_pass = os.getenv("ADMIN_PASSWORD", "samcro2026")
+    admin_user = os.getenv("DASHBOARD_USER") or os.getenv("ADMIN_USERNAME", "admin")
+    admin_pass = os.getenv("DASHBOARD_PASS") or os.getenv("ADMIN_PASSWORD", "samcro2026")
     existing = await db.obtener_usuario(admin_user)
     if not existing:
         await db.crear_usuario(admin_user, admin_pass, "superadmin", json.dumps(["consolidado", "mecanica", "bar", "tatuajes", "show"]), debe_cambiar_password=0)
@@ -964,11 +964,11 @@ async def on_ready():
     await db.iniciar_db()
     
     # Inicializar Super Admin automático
-    admin_user = os.getenv("DASHBOARD_USER")
-    admin_pass = os.getenv("DASHBOARD_PASS")
+    admin_user = os.getenv("DASHBOARD_USER") or os.getenv("ADMIN_USERNAME", "admin")
+    admin_pass = os.getenv("DASHBOARD_PASS") or os.getenv("ADMIN_PASSWORD", "samcro2026")
     if admin_user and admin_pass:
         permisos = ["consolidado"] + list(config.SECCIONES.keys())
-        await db.crear_usuario(admin_user, admin_pass, "superadmin", json.dumps(permisos))
+        await db.crear_usuario(admin_user, admin_pass, "superadmin", json.dumps(permisos), debe_cambiar_password=0)
         print(f"Super Admin '{admin_user}' creado o actualizado en la base de datos.")
 
     if GUILD_ID:
