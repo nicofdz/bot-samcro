@@ -372,6 +372,10 @@ async def todos_los_canales_trabajador():
     return await _fetch_all("SELECT * FROM canales_trabajador")
 
 
+async def desvincular_canal(canal_id: str):
+    await _execute("DELETE FROM canales_trabajador WHERE canal_id = ?", (canal_id,))
+
+
 # ---------- Estado (para el corte semanal automático) ----------
 
 async def obtener_estado(clave: str):

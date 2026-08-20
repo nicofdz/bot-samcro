@@ -493,17 +493,73 @@ def obtener_porcentaje_comision(member: discord.Member, seccion_key: str, servic
     return config.SECCIONES.get(seccion_key, {}).get("comision_servicio", 0.30)
 
 
+async def obtener_trabajadores_activos_con_canal(guild: discord.Guild = None):
+    """
+    Retorna un diccionario {discord_id: info_canal} con los trabajadores que actualmente
+    tienen un canal de bitácora activo existente en Discord.
+    Desvincula automáticamente los canales que hayan sido borrados de Discord.
+    """
+    canales = await db.todos_los_canales_trabajador()
+    activos = {}
+    if not guild and GUILD_ID:
+        try:
+            guild = bot.get_guild(int(GUILD_ID))
+        except Exception:
+            guild = None
+    
+    for c in canales:
+        canal_id_str = c["canal_id"]
+        if guild:
+            canal_obj = guild.get_channel(int(canal_id_str))
+            if not canal_obj:
+                try:
+                    await db.desvincular_canal(canal_id_str)
+                except Exception:
+                    pass
+                continue
+        activos[c["discord_id"]] = c
+    return activos
+
+
 async def calcular_nomina(seccion_key: str, inicio_utc: datetime, fin_utc: datetime, solo_validados=True, guild: discord.Guild = None):
     seccion = config.SECCIONES[seccion_key]
     registros = await db.obtener_registros_semana(seccion_key, inicio_utc.isoformat(), fin_utc.isoformat(),
                                                     solo_validados=solo_validados)
+    
+    trabajadores_activos = await obtener_trabajadores_activos_con_canal(guild)
     resumen = {}
+    
+    # 1. Incluir a todos los trabajadores con bitácora activa en la lista (incluso si tienen $0)
+    for did, info in trabajadores_activos.items():
+        resumen[did] = {
+            "nombre": info["nombre"],
+            "horas": 0.0,
+            "n_servicios": 0,
+            "monto_servicios": 0.0,
+            "pago_horas": 0.0,
+            "pago_comisiones": 0.0,
+            "es_jefe": False,
+            "discord_id": did
+        }
+
+    # 2. Acumular registros solo para trabajadores con canal activo (los borrados se omiten)
     for r in registros:
         did = r["discord_id"]
+        if did not in trabajadores_activos:
+            continue
+            
         if did not in resumen:
-            resumen[did] = {"nombre": r["nombre"], "horas": 0.0, "n_servicios": 0,
-                             "monto_servicios": 0.0, "pago_horas": 0.0, "pago_comisiones": 0.0,
-                             "es_jefe": False, "discord_id": did}
+            resumen[did] = {
+                "nombre": r["nombre"],
+                "horas": 0.0,
+                "n_servicios": 0,
+                "monto_servicios": 0.0,
+                "pago_horas": 0.0,
+                "pago_comisiones": 0.0,
+                "es_jefe": False,
+                "discord_id": did
+            }
+            
         if r["tipo"] == "horas":
             resumen[did]["horas"] += r["horas"]
         else:
@@ -1064,6 +1120,17 @@ async def on_raw_reaction_add(payload: discord.RawReactionActionEvent):
             await mensaje.edit(embed=embed)
     except discord.NotFound:
         pass
+
+
+@bot.event
+async def on_guild_channel_delete(channel: discord.abc.GuildChannel):
+    try:
+        vinculo = await db.trabajador_de_canal(str(channel.id))
+        if vinculo:
+            await db.desvincular_canal(str(channel.id))
+            print(f"🗑️ Bitácora eliminada ({channel.name}). Se desvinculó al trabajador {vinculo['nombre']}.")
+    except Exception as e:
+        print(f"Error en on_guild_channel_delete: {e}")
 
 
 # ---------- Setup: canal personal de trabajador ----------
