@@ -626,47 +626,39 @@ def _embed_estado(validado: bool):
            ("✅ Aprobado", discord.Color.green())
 
 
-async def descargar_imagen_local(url: str) -> str:
+async def procesar_attachment_a_base64(att: discord.Attachment) -> str:
     """
-    Descarga una imagen de Discord y la convierte a Data URL Base64 para guardarla
-    directamente en la base de datos.
-    De esta forma la imagen NUNCA caduca, NUNCA se rompe al borrar el mensaje en Discord
-    y NUNCA se pierde al re-desplegar en Render.
+    Lee los datos brutos de la imagen directamente del Attachment de Discord
+    usando la conexión autenticada de discord.py y la convierte en Data URL Base64.
+    Se almacena permanentemente en la BDD para evitar caducidad de enlaces o borrados.
     """
-    if not url:
+    if not att:
         return None
     try:
-        ext = "png"
-        path_without_params = url.split("?")[0]
-        if "." in path_without_params:
-            possible_ext = path_without_params.split(".")[-1].lower()
-            if possible_ext in ["png", "jpg", "jpeg", "webp", "gif"]:
-                ext = possible_ext
-                if ext == "jpg":
-                    ext = "jpeg"
+        data = await att.read()
+        ext = att.filename.split(".")[-1].lower() if "." in att.filename else "png"
+        if ext == "jpg":
+            ext = "jpeg"
+        if ext not in ["png", "jpeg", "webp", "gif"]:
+            ext = "png"
+            
+        try:
+            import io
+            from PIL import Image
+            img = Image.open(io.BytesIO(data))
+            img.thumbnail((1024, 1024))
+            buf = io.BytesIO()
+            img_fmt = "PNG" if ext == "png" else "JPEG"
+            img.save(buf, format=img_fmt, quality=80, optimize=True)
+            data = buf.getvalue()
+        except Exception as pe:
+            print(f"Aviso al optimizar imagen con Pillow: {pe}")
 
-        async with aiohttp.ClientSession() as session:
-            async with session.get(url) as resp:
-                if resp.status == 200:
-                    data = await resp.read()
-                    
-                    try:
-                        import io
-                        from PIL import Image
-                        img = Image.open(io.BytesIO(data))
-                        img.thumbnail((1024, 1024))
-                        buffer = io.BytesIO()
-                        img_format = "PNG" if ext == "png" else "JPEG"
-                        img.save(buffer, format=img_format, quality=80, optimize=True)
-                        data = buffer.getvalue()
-                    except Exception:
-                        pass
-
-                    b64_str = base64.b64encode(data).decode('utf-8')
-                    return f"data:image/{ext};base64,{b64_str}"
+        b64_str = base64.b64encode(data).decode('utf-8')
+        return f"data:image/{ext};base64,{b64_str}"
     except Exception as e:
-        print(f"Error al procesar imagen Base64: {e}")
-    return url
+        print(f"Error procesando attachment a Base64: {e}")
+        return getattr(att, "url", None)
 
 
 SECCION_CHOICES = [app_commands.Choice(name=v["nombre_visible"], value=k) for k, v in config.SECCIONES.items()]
@@ -807,8 +799,9 @@ class ServicioModal(discord.ui.Modal):
         try:
             msg = await bot.wait_for('message', check=check, timeout=60.0)
             if msg.attachments:
-                foto_url = msg.attachments[0].url
-                foto_url_db = await descargar_imagen_local(foto_url)
+                att = msg.attachments[0]
+                foto_url = att.url
+                foto_url_db = await procesar_attachment_a_base64(att)
                 try:
                     await msg.delete()
                 except Exception:
@@ -1411,7 +1404,7 @@ async def registrar_servicio(interaction: discord.Interaction, seccion: app_comm
     info_seccion = config.SECCIONES[seccion_key]
     comision = round(monto * info_seccion["comision_servicio"], 2)
     foto_url = foto.url if foto else None
-    foto_url_db = await descargar_imagen_local(foto_url) if foto_url else None
+    foto_url_db = await procesar_attachment_a_base64(foto) if foto else None
     auto_validado = 0 if config.REQUIERE_APROBACION else 1
 
     registro_id = await db.registrar_servicio(str(interaction.user.id), interaction.user.display_name, seccion_key,
