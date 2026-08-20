@@ -798,6 +798,11 @@ class IniciarTurnoDropdown(discord.ui.Select):
             return
 
         seccion_key = self.values[0]
+        try:
+            await interaction.message.edit(view=PanelControlView())
+        except Exception:
+            pass
+
         now_iso = await db.iniciar_turno(str(interaction.user.id), interaction.user.display_name, seccion_key, str(interaction.channel.id))
         if not now_iso:
             activo = await db.obtener_turno_activo(str(interaction.user.id))
@@ -838,6 +843,11 @@ class HorasDropdown(discord.ui.Select):
             return
 
         seccion_key = self.values[0]
+        try:
+            await interaction.message.edit(view=PanelControlView())
+        except Exception:
+            pass
+
         modal = HorasModal(seccion_key)
         await interaction.response.send_modal(modal)
 
@@ -863,6 +873,11 @@ class ServicioDropdown(discord.ui.Select):
             return
 
         seccion_key = self.values[0]
+        try:
+            await interaction.message.edit(view=PanelControlView())
+        except Exception:
+            pass
+
         modal = ServicioModal(seccion_key)
         await interaction.response.send_modal(modal)
 
@@ -930,118 +945,6 @@ class FinalizarTurnoView(discord.ui.View):
             await mensaje.add_reaction("✅")
 
 
-class SeccionServicioView(discord.ui.View):
-    def __init__(self, user_id: str):
-        super().__init__(timeout=60)
-        self.user_id = user_id
-
-    @discord.ui.button(label="Mecánica", emoji="🔧", style=discord.ButtonStyle.primary)
-    async def btn_meca(self, interaction: discord.Interaction, button: discord.ui.Button):
-        if str(interaction.user.id) != self.user_id:
-            await interaction.response.send_message("Este menú pertenece a otro usuario.", ephemeral=True)
-            return
-        await interaction.response.send_modal(ServicioModal("mecanica"))
-
-    @discord.ui.button(label="Bar / Comida", emoji="🍺", style=discord.ButtonStyle.primary)
-    async def btn_bar(self, interaction: discord.Interaction, button: discord.ui.Button):
-        if str(interaction.user.id) != self.user_id:
-            await interaction.response.send_message("Este menú pertenece a otro usuario.", ephemeral=True)
-            return
-        await interaction.response.send_modal(ServicioModal("bar"))
-
-    @discord.ui.button(label="Tatuajes", emoji="🎨", style=discord.ButtonStyle.primary)
-    async def btn_tat(self, interaction: discord.Interaction, button: discord.ui.Button):
-        if str(interaction.user.id) != self.user_id:
-            await interaction.response.send_message("Este menú pertenece a otro usuario.", ephemeral=True)
-            return
-        await interaction.response.send_modal(ServicioModal("tatuajes"))
-
-    @discord.ui.button(label="Bailarinas / Show", emoji="⭐", style=discord.ButtonStyle.primary)
-    async def btn_show(self, interaction: discord.Interaction, button: discord.ui.Button):
-        if str(interaction.user.id) != self.user_id:
-            await interaction.response.send_message("Este menú pertenece a otro usuario.", ephemeral=True)
-            return
-        await interaction.response.send_modal(ServicioModal("show"))
-
-
-class SeccionHorasView(discord.ui.View):
-    def __init__(self, user_id: str):
-        super().__init__(timeout=60)
-        self.user_id = user_id
-
-    @discord.ui.button(label="Mecánica", emoji="🔧", style=discord.ButtonStyle.primary)
-    async def btn_meca(self, interaction: discord.Interaction, button: discord.ui.Button):
-        if str(interaction.user.id) != self.user_id:
-            await interaction.response.send_message("Este menú pertenece a otro usuario.", ephemeral=True)
-            return
-        await interaction.response.send_modal(HorasModal("mecanica"))
-
-    @discord.ui.button(label="Bar / Comida", emoji="🍺", style=discord.ButtonStyle.primary)
-    async def btn_bar(self, interaction: discord.Interaction, button: discord.ui.Button):
-        if str(interaction.user.id) != self.user_id:
-            await interaction.response.send_message("Este menú pertenece a otro usuario.", ephemeral=True)
-            return
-        await interaction.response.send_modal(HorasModal("bar"))
-
-    @discord.ui.button(label="Tatuajes", emoji="🎨", style=discord.ButtonStyle.primary)
-    async def btn_tat(self, interaction: discord.Interaction, button: discord.ui.Button):
-        if str(interaction.user.id) != self.user_id:
-            await interaction.response.send_message("Este menú pertenece a otro usuario.", ephemeral=True)
-            return
-        await interaction.response.send_modal(HorasModal("tatuajes"))
-
-    @discord.ui.button(label="Bailarinas / Show", emoji="⭐", style=discord.ButtonStyle.primary)
-    async def btn_show(self, interaction: discord.Interaction, button: discord.ui.Button):
-        if str(interaction.user.id) != self.user_id:
-            await interaction.response.send_message("Este menú pertenece a otro usuario.", ephemeral=True)
-            return
-        await interaction.response.send_modal(HorasModal("show"))
-
-
-class SeccionIniciarTurnoView(discord.ui.View):
-    def __init__(self, user_id: str):
-        super().__init__(timeout=60)
-        self.user_id = user_id
-
-    async def _iniciar(self, interaction: discord.Interaction, seccion_key: str):
-        if str(interaction.user.id) != self.user_id:
-            await interaction.response.send_message("Este menú pertenece a otro usuario.", ephemeral=True)
-            return
-        now_iso = await db.iniciar_turno(str(interaction.user.id), interaction.user.display_name, seccion_key, str(interaction.channel.id))
-        if not now_iso:
-            activo = await db.obtener_turno_activo(str(interaction.user.id))
-            sec_name = config.SECCIONES[activo['seccion']]['nombre_visible'] if activo else "otra área"
-            await interaction.response.send_message(f"⚠️ Ya tienes un turno activo en **{sec_name}**. Debes finalizarlo antes de iniciar otro.", ephemeral=True)
-            return
-
-        dt = datetime.fromisoformat(now_iso).replace(tzinfo=UTC).astimezone(TZ_CLUB)
-        embed = discord.Embed(
-            title="🟢 Turno Iniciado",
-            description=f"**Trabajador:** {interaction.user.display_name}\n"
-                        f"**Área:** {config.SECCIONES[seccion_key]['nombre_visible']}\n"
-                        f"**Hora de Entrada:** {dt.strftime('%H:%M:%S')}\n\n"
-                        f"📌 Presiona el botón rojo de abajo cuando desees **finalizar tu turno**.",
-            color=discord.Color.green()
-        )
-        await interaction.response.send_message(embed=embed, view=FinalizarTurnoView(), ephemeral=True)
-
-    @discord.ui.button(label="Mecánica", emoji="🔧", style=discord.ButtonStyle.success)
-    async def btn_meca(self, interaction: discord.Interaction, button: discord.ui.Button):
-        await self._iniciar(interaction, "mecanica")
-
-    @discord.ui.button(label="Bar / Comida", emoji="🍺", style=discord.ButtonStyle.success)
-    async def btn_bar(self, interaction: discord.Interaction, button: discord.ui.Button):
-        await self._iniciar(interaction, "bar")
-
-    @discord.ui.button(label="Tatuajes", emoji="🎨", style=discord.ButtonStyle.success)
-    async def btn_tat(self, interaction: discord.Interaction, button: discord.ui.Button):
-        await self._iniciar(interaction, "tatuajes")
-
-    @discord.ui.button(label="Bailarinas / Show", emoji="⭐", style=discord.ButtonStyle.success)
-    async def btn_show(self, interaction: discord.Interaction, button: discord.ui.Button):
-        await self._iniciar(interaction, "show")
-
-
 class PanelControlView(discord.ui.View):
     def __init__(self):
         super().__init__(timeout=None)
@@ -1049,43 +952,7 @@ class PanelControlView(discord.ui.View):
         self.add_item(HorasDropdown())
         self.add_item(ServicioDropdown())
 
-    @discord.ui.button(label="🟢 Iniciar Turno", style=discord.ButtonStyle.success, custom_id="btn_iniciar_turno_direct", row=0)
-    async def btn_iniciar_turno_direct(self, interaction: discord.Interaction, button: discord.ui.Button):
-        vinculo = await db.trabajador_de_canal(str(interaction.channel.id))
-        if not vinculo or vinculo["discord_id"] != str(interaction.user.id):
-            await interaction.response.send_message("Este panel solo puede ser usado por el dueño de la bitácora.", ephemeral=True)
-            return
-        await interaction.response.send_message(
-            "🟢 **Selecciona la sección para iniciar tu turno:**",
-            view=SeccionIniciarTurnoView(str(interaction.user.id)),
-            ephemeral=True
-        )
-
-    @discord.ui.button(label="🕒 Registrar Horas", style=discord.ButtonStyle.primary, custom_id="btn_registrar_horas_direct", row=0)
-    async def btn_registrar_horas_direct(self, interaction: discord.Interaction, button: discord.ui.Button):
-        vinculo = await db.trabajador_de_canal(str(interaction.channel.id))
-        if not vinculo or vinculo["discord_id"] != str(interaction.user.id):
-            await interaction.response.send_message("Este panel solo puede ser usado por el dueño de la bitácora.", ephemeral=True)
-            return
-        await interaction.response.send_message(
-            "🕒 **Selecciona la sección para registrar tus horas manuales:**",
-            view=SeccionHorasView(str(interaction.user.id)),
-            ephemeral=True
-        )
-
-    @discord.ui.button(label="🧾 Registrar Servicio", style=discord.ButtonStyle.primary, custom_id="btn_registrar_servicio_direct", row=0)
-    async def btn_registrar_servicio_direct(self, interaction: discord.Interaction, button: discord.ui.Button):
-        vinculo = await db.trabajador_de_canal(str(interaction.channel.id))
-        if not vinculo or vinculo["discord_id"] != str(interaction.user.id):
-            await interaction.response.send_message("Este panel solo puede ser usado por el dueño de la bitácora.", ephemeral=True)
-            return
-        await interaction.response.send_message(
-            "🧾 **Selecciona la sección para registrar tu servicio/venta:**",
-            view=SeccionServicioView(str(interaction.user.id)),
-            ephemeral=True
-        )
-
-    @discord.ui.button(label="📊 Ver Mi Resumen Semanal", style=discord.ButtonStyle.secondary, custom_id="btn_resumen_panel", row=1)
+    @discord.ui.button(label="📊 Ver Mi Resumen Semanal", style=discord.ButtonStyle.secondary, custom_id="btn_resumen_panel")
     async def btn_resumen(self, interaction: discord.Interaction, button: discord.ui.Button):
         vinculo = await db.trabajador_de_canal(str(interaction.channel.id))
         if not vinculo or vinculo["discord_id"] != str(interaction.user.id):
