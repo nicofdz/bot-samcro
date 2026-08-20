@@ -68,6 +68,7 @@ CREATE TABLE IF NOT EXISTS usuarios (
     password_hash TEXT NOT NULL,
     rol TEXT NOT NULL,
     permisos TEXT NOT NULL,
+    debe_cambiar_password INTEGER DEFAULT 0,
     creado_en TEXT NOT NULL
 );
 
@@ -134,6 +135,7 @@ CREATE TABLE IF NOT EXISTS usuarios (
     password_hash TEXT NOT NULL,
     rol TEXT NOT NULL,
     permisos TEXT NOT NULL,
+    debe_cambiar_password INTEGER DEFAULT 0,
     creado_en TEXT NOT NULL
 );
 
@@ -223,6 +225,11 @@ async def iniciar_db():
         async with aiosqlite.connect(DB_PATH) as db:
             await db.executescript(SQLITE_SCHEMA)
             await db.commit()
+
+    try:
+        await _execute("ALTER TABLE usuarios ADD COLUMN debe_cambiar_password INTEGER DEFAULT 0")
+    except Exception:
+        pass
 
 
 # ---------- Registros ----------
@@ -399,14 +406,22 @@ def verify_password(stored_hash: str, password: str) -> bool:
         return False
 
 
-async def crear_usuario(username: str, password_plain: str, rol: str, permisos_json: str):
+async def crear_usuario(username: str, password_plain: str, rol: str, permisos_json: str, debe_cambiar_password: int = 1):
     password_hash = hash_password(password_plain)
     await _execute(
-        """INSERT INTO usuarios (username, password_hash, rol, permisos, creado_en)
-           VALUES (?, ?, ?, ?, ?)
+        """INSERT INTO usuarios (username, password_hash, rol, permisos, debe_cambiar_password, creado_en)
+           VALUES (?, ?, ?, ?, ?, ?)
            ON CONFLICT(username) DO UPDATE SET
-           password_hash=excluded.password_hash, rol=excluded.rol, permisos=excluded.permisos""",
-        (username, password_hash, rol, permisos_json, datetime.utcnow().isoformat()),
+           password_hash=excluded.password_hash, rol=excluded.rol, permisos=excluded.permisos, debe_cambiar_password=excluded.debe_cambiar_password""",
+        (username, password_hash, rol, permisos_json, debe_cambiar_password, datetime.utcnow().isoformat()),
+    )
+
+
+async def cambiar_password_usuario(username: str, nueva_password_plain: str):
+    password_hash = hash_password(nueva_password_plain)
+    await _execute(
+        "UPDATE usuarios SET password_hash = ?, debe_cambiar_password = 0 WHERE username = ?",
+        (password_hash, username),
     )
 
 
@@ -433,7 +448,7 @@ async def eliminar_usuario(username: str):
 
 
 async def listar_usuarios():
-    return await _fetch_all("SELECT username, rol, permisos, creado_en FROM usuarios ORDER BY username ASC")
+    return await _fetch_all("SELECT username, rol, permisos, debe_cambiar_password, creado_en FROM usuarios ORDER BY username ASC")
 
 
 # ---------- Sesiones ----------

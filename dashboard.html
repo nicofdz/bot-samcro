@@ -777,6 +777,36 @@
   </div>
 </div>
 
+<!-- Modal Cambio Obligatorio de Contraseña -->
+<div id="forceChangePassModal" class="modal-backdrop hidden" style="z-index: 99999;">
+  <div class="modal-content card" style="max-width: 440px; width: 92%;">
+    <div class="modal-header" style="border-bottom: 1px solid var(--border); padding-bottom: 12px; margin-bottom: 16px;">
+      <h2 style="font-size: 18px; font-weight: 800; margin: 0; color: #e6b00f; display: flex; align-items: center; gap: 8px;">
+        <i class="fa-solid fa-key"></i> Cambio de Contraseña Obligatorio
+      </h2>
+    </div>
+    <div class="modal-body">
+      <p style="font-size: 13px; color: var(--text-secondary); margin-bottom: 16px; line-height: 1.5;">
+        Hola <strong id="forcePassUsername" style="color: var(--text-primary);"></strong>. Es tu primer acceso al portal. Por seguridad debes establecer tu contraseña personal antes de continuar.
+      </p>
+      <form id="forcePassForm" onsubmit="handleForcePasswordSubmit(event)">
+        <div class="input-group" style="margin-bottom: 14px;">
+          <label style="font-size: 12px; font-weight: 700; color: var(--text-secondary); display: block; margin-bottom: 6px;">Nueva Contraseña</label>
+          <input type="password" id="forceNewPass" required minlength="4" placeholder="Mínimo 4 caracteres" style="width: 100%; padding: 10px 12px; border: 1px solid var(--border); background: var(--surface-1); color: var(--text-primary); border-radius: 8px; font-size: 13px; outline: none;">
+        </div>
+        <div class="input-group" style="margin-bottom: 14px;">
+          <label style="font-size: 12px; font-weight: 700; color: var(--text-secondary); display: block; margin-bottom: 6px;">Confirmar Nueva Contraseña</label>
+          <input type="password" id="forceConfirmPass" required minlength="4" placeholder="Repite la contraseña" style="width: 100%; padding: 10px 12px; border: 1px solid var(--border); background: var(--surface-1); color: var(--text-primary); border-radius: 8px; font-size: 13px; outline: none;">
+        </div>
+        <div id="forcePassError" class="error-message hidden" style="color: #e53e3e; font-size: 12px; margin-bottom: 12px; font-weight: 600;"></div>
+        <button type="submit" class="login-btn" style="width: 100%; padding: 12px; display: flex; align-items: center; justify-content: center; gap: 8px; font-weight: 800;">
+          <i class="fa-solid fa-lock"></i> Guardar Nueva Contraseña
+        </button>
+      </form>
+    </div>
+  </div>
+</div>
+
 <script>
 const SECCIONES = {
   mecanica:  { label: '<i class="fa-solid fa-wrench"></i> Mecánica',         varColor: "--series-mecanica" },
@@ -1136,6 +1166,51 @@ function mostrarLobby() {
   document.getElementById("adminView").classList.add("hidden");
   document.getElementById("lobbyView").classList.remove("hidden");
   actualizarLobbyPermisos();
+  verificarCambioPasswordObligatorio();
+}
+
+function verificarCambioPasswordObligatorio() {
+  if (usuarioLogueado && usuarioLogueado.debe_cambiar_password) {
+    document.getElementById("forcePassUsername").textContent = usuarioLogueado.username;
+    document.getElementById("forceChangePassModal").classList.remove("hidden");
+  } else {
+    document.getElementById("forceChangePassModal").classList.add("hidden");
+  }
+}
+
+async function handleForcePasswordSubmit(e) {
+  e.preventDefault();
+  const newPass = document.getElementById("forceNewPass").value.trim();
+  const confirmPass = document.getElementById("forceConfirmPass").value.trim();
+  const errorEl = document.getElementById("forcePassError");
+
+  if (newPass !== confirmPass) {
+    errorEl.textContent = "Las contraseñas no coinciden.";
+    errorEl.classList.remove("hidden");
+    return;
+  }
+  if (newPass.length < 4) {
+    errorEl.textContent = "La contraseña debe tener al menos 4 caracteres.";
+    errorEl.classList.remove("hidden");
+    return;
+  }
+
+  try {
+    const res = await fetch("/api/mi-password", {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ nueva_password: newPass })
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || "Error al cambiar la contraseña");
+
+    usuarioLogueado.debe_cambiar_password = false;
+    document.getElementById("forceChangePassModal").classList.add("hidden");
+    alert("¡Tu contraseña ha sido actualizada exitosamente! Bienvenido al portal.");
+  } catch (err) {
+    errorEl.textContent = err.message;
+    errorEl.classList.remove("hidden");
+  }
 }
 
 async function handleLoginSubmit(e) {

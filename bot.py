@@ -169,7 +169,8 @@ async def handle_api_login(request):
         response = web.json_response({
             "username": user["username"],
             "rol": user["rol"],
-            "permisos": json.loads(user["permisos"])
+            "permisos": json.loads(user["permisos"]),
+            "debe_cambiar_password": bool(user.get("debe_cambiar_password", 0))
         })
         response.set_cookie(
             "session_id",
@@ -194,10 +195,13 @@ async def handle_api_logout(request):
 
 async def handle_api_me(request):
     user = request["user"]
+    db_user = await db.obtener_usuario(user["username"])
+    target_user = db_user if db_user else user
     return web.json_response({
-        "username": user["username"],
-        "rol": user["rol"],
-        "permisos": json.loads(user["permisos"])
+        "username": target_user["username"],
+        "rol": target_user["rol"],
+        "permisos": json.loads(target_user["permisos"]),
+        "debe_cambiar_password": bool(target_user.get("debe_cambiar_password", 0))
     })
 
 
@@ -230,8 +234,23 @@ async def handle_crear_usuario(request):
         if not username or not password:
             return web.json_response({"error": "Faltan campos obligatorios"}, status=400)
             
-        await db.crear_usuario(username, password, rol, json.dumps(permisos))
+        await db.crear_usuario(username, password, rol, json.dumps(permisos), debe_cambiar_password=1)
         return web.json_response({"success": True})
+    except Exception as e:
+        return web.json_response({"error": str(e)}, status=500)
+
+
+async def handle_cambiar_mi_password(request):
+    try:
+        user = request["user"]
+        payload = await request.json()
+        nueva_pass = payload.get("nueva_password", "").strip()
+        
+        if not nueva_pass or len(nueva_pass) < 4:
+            return web.json_response({"error": "La contraseña debe tener al menos 4 caracteres"}, status=400)
+            
+        await db.cambiar_password_usuario(user["username"], nueva_pass)
+        return web.json_response({"success": True, "mensaje": "Contraseña actualizada exitosamente"})
     except Exception as e:
         return web.json_response({"error": str(e)}, status=500)
 
@@ -315,6 +334,7 @@ async def iniciar_servidor_web():
     app.router.add_put("/api/usuarios/{username}", handle_editar_usuario)
     app.router.add_delete("/api/usuarios/{username}", handle_eliminar_usuario)
     app.router.add_put("/api/registros/{id}/anular", handle_anular_registro)
+    app.router.add_put("/api/mi-password", handle_cambiar_mi_password)
     
     os.makedirs("uploads", exist_ok=True)
     app.router.add_static("/uploads", "uploads")
@@ -329,6 +349,12 @@ async def iniciar_servidor_web():
 
 
 async def custom_setup_hook():
+    await db.iniciar_db()
+    admin_user = os.getenv("ADMIN_USERNAME", "admin")
+    admin_pass = os.getenv("ADMIN_PASSWORD", "samcro2026")
+    existing = await db.obtener_usuario(admin_user)
+    if not existing:
+        await db.crear_usuario(admin_user, admin_pass, "superadmin", json.dumps(["consolidado", "mecanica", "bar", "tatuajes", "show"]), debe_cambiar_password=0)
     bot.loop.create_task(iniciar_servidor_web())
     bot.add_view(PanelControlView())
     bot.add_view(FinalizarTurnoView())
