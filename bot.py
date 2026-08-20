@@ -801,11 +801,7 @@ class ServicioModal(discord.ui.Modal):
             if msg.attachments:
                 att = msg.attachments[0]
                 foto_url = att.url
-                foto_url_db = await procesar_attachment_a_base64(att)
-                try:
-                    await msg.delete()
-                except Exception:
-                    pass
+                foto_url_db = att.url
             elif msg.content.lower().strip() in ['omitir', 'no', 'ninguna', 'skip']:
                 try:
                     await msg.delete()

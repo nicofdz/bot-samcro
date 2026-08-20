@@ -1687,7 +1687,12 @@ function renderDetallesTab() {
         const fullUrl = r.foto_url.startsWith("http") ? r.foto_url : window.location.origin + r.foto_url;
         const urlEncoded = encodeURIComponent(fullUrl);
         const titleEncoded = encodeURIComponent(r.servicio_nombre || "Respaldo de Servicio");
-        captura = `<img src="${fullUrl}" class="thumbnail-img" data-url="${urlEncoded}" data-title="${titleEncoded}" onclick="abrirImagenModalDesdeElemento(this)" onerror="this.onerror=null; this.outerHTML='<span style=\\'color:var(--text-muted); font-size:11px; font-style:italic;\\'>Imagen caducada</span>';" title="Haz clic para ver la imagen en grande" style="cursor: pointer; width: 44px; height: 44px; object-fit: cover; border-radius: 6px; border: 1px solid var(--border); transition: transform 0.2s;">`;
+        captura = `
+          <div style="display:inline-flex; align-items:center; gap:6px;">
+            <img src="${fullUrl}" class="thumbnail-img" data-url="${urlEncoded}" data-title="${titleEncoded}" onclick="abrirImagenModalDesdeElemento(this)" title="Haz clic para ampliar" style="cursor: pointer; width: 40px; height: 40px; object-fit: cover; border-radius: 6px; border: 1px solid var(--border); transition: transform 0.2s;">
+            <a href="${fullUrl}" target="_blank" style="color: #4da0ff; font-size: 11px; font-weight: 700; text-decoration: none;" title="Abrir enlace original"><i class="fa-solid fa-arrow-up-right-from-square"></i></a>
+          </div>
+        `;
       }
       return `
         <tr style="border-bottom:1px solid var(--border);">
