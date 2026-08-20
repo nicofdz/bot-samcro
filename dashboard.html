@@ -1685,8 +1685,9 @@ function renderDetallesTab() {
       let captura = '<span style="color:var(--text-muted); font-style:italic;">Sin captura</span>';
       if (r.foto_url) {
         const fullUrl = r.foto_url.startsWith("http") ? r.foto_url : window.location.origin + r.foto_url;
-        const tituloSafe = (r.servicio_nombre || "Respaldo de servicio").replace(/'/g, "\\'");
-        captura = `<img src="${fullUrl}" class="thumbnail-img" onclick="abrirImagenModal('${fullUrl}', '${tituloSafe}')" title="Haz clic para ver la imagen en grande" style="cursor: pointer; width: 44px; height: 44px; object-fit: cover; border-radius: 6px; border: 1px solid var(--border); transition: transform 0.2s;">`;
+        const urlEncoded = encodeURIComponent(fullUrl);
+        const titleEncoded = encodeURIComponent(r.servicio_nombre || "Respaldo de Servicio");
+        captura = `<img src="${fullUrl}" class="thumbnail-img" data-url="${urlEncoded}" data-title="${titleEncoded}" onclick="abrirImagenModalDesdeElemento(this)" onerror="this.onerror=null; this.outerHTML='<span style=\\'color:var(--text-muted); font-size:11px; font-style:italic;\\'>Imagen caducada</span>';" title="Haz clic para ver la imagen en grande" style="cursor: pointer; width: 44px; height: 44px; object-fit: cover; border-radius: 6px; border: 1px solid var(--border); transition: transform 0.2s;">`;
       }
       return `
         <tr style="border-bottom:1px solid var(--border);">
@@ -1852,7 +1853,17 @@ async function handlePurgeSubmit(e) {
   }
 }
 
+function abrirImagenModalDesdeElemento(el) {
+  if (!el) return;
+  const rawUrl = el.getAttribute("data-url");
+  const rawTitle = el.getAttribute("data-title");
+  const url = rawUrl ? decodeURIComponent(rawUrl) : el.src;
+  const title = rawTitle ? decodeURIComponent(rawTitle) : "Respaldo de Servicio";
+  abrirImagenModal(url, title);
+}
+
 function abrirImagenModal(url, titulo) {
+  if (!url) return;
   const modal = document.getElementById("imagePreviewModal");
   const img = document.getElementById("imageModalPreviewImg");
   const titleEl = document.getElementById("imageModalTitle");

@@ -627,31 +627,10 @@ def _embed_estado(validado: bool):
 
 
 async def descargar_imagen_local(url: str) -> str:
-    """Descarga una imagen de una URL y la guarda en la carpeta local uploads/ con un nombre único."""
+    """Retorna la URL permanente de la imagen en Discord CDN para evitar perdida de archivos tras redespliegues en Render."""
     if not url:
         return None
-    try:
-        ext = "png"
-        path_without_params = url.split("?")[0]
-        if "." in path_without_params:
-            possible_ext = path_without_params.split(".")[-1].lower()
-            if possible_ext in ["png", "jpg", "jpeg", "webp", "gif"]:
-                ext = possible_ext
-
-        os.makedirs("uploads", exist_ok=True)
-        filename = f"{uuid.uuid4()}.{ext}"
-        filepath = os.path.join("uploads", filename)
-
-        async with aiohttp.ClientSession() as session:
-            async with session.get(url) as resp:
-                if resp.status == 200:
-                    data = await resp.read()
-                    with open(filepath, "wb") as f:
-                        f.write(data)
-                    return f"/uploads/{filename}"
-    except Exception as e:
-        print(f"Error al descargar imagen de Discord: {e}")
-    return None
+    return url
 
 
 SECCION_CHOICES = [app_commands.Choice(name=v["nombre_visible"], value=k) for k, v in config.SECCIONES.items()]
