@@ -627,9 +627,45 @@ def _embed_estado(validado: bool):
 
 
 async def descargar_imagen_local(url: str) -> str:
-    """Retorna la URL permanente de la imagen en Discord CDN para evitar perdida de archivos tras redespliegues en Render."""
+    """
+    Descarga una imagen de Discord y la convierte a Data URL Base64 para guardarla
+    directamente en la base de datos.
+    De esta forma la imagen NUNCA caduca, NUNCA se rompe al borrar el mensaje en Discord
+    y NUNCA se pierde al re-desplegar en Render.
+    """
     if not url:
         return None
+    try:
+        ext = "png"
+        path_without_params = url.split("?")[0]
+        if "." in path_without_params:
+            possible_ext = path_without_params.split(".")[-1].lower()
+            if possible_ext in ["png", "jpg", "jpeg", "webp", "gif"]:
+                ext = possible_ext
+                if ext == "jpg":
+                    ext = "jpeg"
+
+        async with aiohttp.ClientSession() as session:
+            async with session.get(url) as resp:
+                if resp.status == 200:
+                    data = await resp.read()
+                    
+                    try:
+                        import io
+                        from PIL import Image
+                        img = Image.open(io.BytesIO(data))
+                        img.thumbnail((1024, 1024))
+                        buffer = io.BytesIO()
+                        img_format = "PNG" if ext == "png" else "JPEG"
+                        img.save(buffer, format=img_format, quality=80, optimize=True)
+                        data = buffer.getvalue()
+                    except Exception:
+                        pass
+
+                    b64_str = base64.b64encode(data).decode('utf-8')
+                    return f"data:image/{ext};base64,{b64_str}"
+    except Exception as e:
+        print(f"Error al procesar imagen Base64: {e}")
     return url
 
 
