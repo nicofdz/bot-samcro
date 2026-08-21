@@ -1022,7 +1022,6 @@ class PanelControlView(discord.ui.View):
     def __init__(self):
         super().__init__(timeout=None)
         self.add_item(IniciarTurnoDropdown())
-        self.add_item(HorasDropdown())
         self.add_item(ServicioDropdown())
 
     @discord.ui.button(label="📊 Ver Mi Resumen Semanal", style=discord.ButtonStyle.secondary, custom_id="btn_resumen_panel")
