@@ -857,10 +857,11 @@
       <form id="purgeForm" onsubmit="handlePurgeSubmit(event)">
         <input type="text" id="purgeConfirmInput" placeholder="Escribe BORRAR" required autocomplete="off" style="width: 100%; padding: 10px 12px; border: 1px solid var(--border); background: var(--surface-1); color: var(--text-primary); border-radius: 8px; font-size: 13px; outline: none; margin-bottom: 14px;">
         <div id="purgeError" class="error-message hidden" style="color: #e53e3e; font-size: 12px; margin-bottom: 12px; font-weight: 600;"></div>
-        <button type="submit" id="purgeSubmitBtn" class="login-btn" style="width: 100%; background: #e53e3e; padding: 12px; display: flex; align-items: center; justify-content: center; gap: 8px; font-weight: 800;">
-          <i class="fa-solid fa-trash-can"></i> Confirmar y Eliminar Registros
-        </button>
       </form>
+    </div>
+  </div>
+</div>
+
 <!-- Modal Vista Previa de Imagen / Captura -->
 <div id="imagePreviewModal" class="modal-backdrop hidden" style="z-index: 100000;" onclick="cerrarImagenModal()">
   <div class="modal-content card" style="max-width: 90vw; max-height: 90vh; width: auto; padding: 20px; text-align: center; background: rgba(18, 20, 26, 0.95); backdrop-filter: blur(12px); border: 1px solid var(--border); border-radius: 16px;" onclick="event.stopPropagation()">
