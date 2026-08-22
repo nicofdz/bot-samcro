@@ -330,9 +330,15 @@ async def handle_limpiar_bdd(request):
         return web.json_response({"error": str(e)}, status=500)
 
 
+
+    
+async def handle_api_health(request):
+    return web.json_response({"status": "ok", "bot_ready": bot.is_ready()})
+
+
 async def auth_middleware(app, handler):
     async def middleware(request):
-        public_paths = ["/", "/api/login", "/api/logout"]
+        public_paths = ["/", "/api/login", "/api/logout", "/api/health"]
         if request.path in public_paths or request.path.startswith("/logo/"):
             return await handler(request)
             
@@ -356,6 +362,7 @@ async def auth_middleware(app, handler):
 async def iniciar_servidor_web():
     app = web.Application(middlewares=[auth_middleware])
     app.router.add_get("/", handle_dashboard)
+    app.router.add_get("/api/health", handle_api_health)
     app.router.add_post("/api/login", handle_api_login)
     app.router.add_post("/api/logout", handle_api_logout)
     app.router.add_get("/api/me", handle_api_me)
@@ -1067,6 +1074,20 @@ class PanelControlView(discord.ui.View):
 
 # ---------- Eventos ----------
 
+@tasks.loop(minutes=5)
+async def self_ping_task():
+    """Mantiene activa la instancia en Render para evitar que entre en suspension (sleep) tras 15 min de inactividad."""
+    try:
+        render_url = os.getenv("RENDER_EXTERNAL_URL")
+        port = int(os.getenv("PORT", 8080))
+        url = f"{render_url}/api/health" if render_url else f"http://127.0.0.1:{port}/api/health"
+        async with aiohttp.ClientSession() as session:
+            async with session.get(url, timeout=10) as resp:
+                pass
+    except Exception:
+        pass
+
+
 @bot.event
 async def on_ready():
     await db.iniciar_db()
@@ -1098,6 +1119,9 @@ async def on_ready():
             print(f"❌ Error al sincronizar comandos al servidor {GUILD_ID}: {e}")
         if not revisar_cierre_semanal.is_running():
             revisar_cierre_semanal.start()
+            
+    if not self_ping_task.is_running():
+        self_ping_task.start()
             
     print(f"SAMCRO bot conectado exitosamente como {bot.user}")
 
