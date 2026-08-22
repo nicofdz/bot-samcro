@@ -1085,29 +1085,31 @@ async def on_ready():
     if admin_user and admin_pass:
         permisos = ["consolidado"] + list(config.SECCIONES.keys())
         await db.crear_usuario(admin_user, admin_pass, "superadmin", json.dumps(permisos), debe_cambiar_password=0)
-        print(f"Super Admin '{admin_user}' creado o actualizado en la base de datos.")
 
-    # 1. Sincronización global (para cualquier servidor donde esté el bot)
-    try:
-        synced_global = await bot.tree.sync()
-        print(f"✅ Comandos Slash sincronizados globalmente: {len(synced_global)} comandos.")
-    except Exception as e:
-        print(f"❌ Error al sincronizar comandos globales: {e}")
-
-    # 2. Sincronización rápida por GUILD_ID (si está configurado)
-    if GUILD_ID:
-        try:
-            guild_id_int = int(str(GUILD_ID).strip())
-            guild = discord.Object(id=guild_id_int)
-            bot.tree.copy_global_to(guild=guild)
-            synced_guild = await bot.tree.sync(guild=guild)
-            print(f"✅ Comandos Slash sincronizados instantáneamente al servidor {guild_id_int}: {len(synced_guild)} comandos.")
-        except Exception as e:
-            print(f"❌ Error al sincronizar comandos al servidor {GUILD_ID}: {e}")
-        if not revisar_cierre_semanal.is_running():
-            revisar_cierre_semanal.start()
+    if not revisar_cierre_semanal.is_running():
+        revisar_cierre_semanal.start()
             
     print(f"SAMCRO bot conectado exitosamente como {bot.user}")
+
+    # Sincronización en segundo plano para no bloquear el inicio
+    async def _sync_commands():
+        if GUILD_ID:
+            try:
+                guild_id_int = int(str(GUILD_ID).strip())
+                guild = discord.Object(id=guild_id_int)
+                bot.tree.copy_global_to(guild=guild)
+                synced_guild = await bot.tree.sync(guild=guild)
+                print(f"✅ Comandos Slash sincronizados al servidor {guild_id_int}: {len(synced_guild)} comandos.")
+            except Exception as e:
+                print(f"❌ Error al sincronizar comandos: {e}")
+        else:
+            try:
+                synced_global = await bot.tree.sync()
+                print(f"✅ Comandos Slash sincronizados globalmente: {len(synced_global)} comandos.")
+            except Exception as e:
+                print(f"❌ Error al sincronizar comandos globales: {e}")
+
+    bot.loop.create_task(_sync_commands())
 
 
 @bot.event
