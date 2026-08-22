@@ -1074,19 +1074,6 @@ class PanelControlView(discord.ui.View):
 
 # ---------- Eventos ----------
 
-@tasks.loop(minutes=5)
-async def self_ping_task():
-    """Mantiene activa la instancia en Render para evitar que entre en suspension (sleep) tras 15 min de inactividad."""
-    try:
-        render_url = os.getenv("RENDER_EXTERNAL_URL")
-        port = int(os.getenv("PORT", 8080))
-        url = f"{render_url}/api/health" if render_url else f"http://127.0.0.1:{port}/api/health"
-        async with aiohttp.ClientSession() as session:
-            async with session.get(url, timeout=10) as resp:
-                pass
-    except Exception:
-        pass
-
 
 @bot.event
 async def on_ready():
@@ -1119,9 +1106,6 @@ async def on_ready():
             print(f"❌ Error al sincronizar comandos al servidor {GUILD_ID}: {e}")
         if not revisar_cierre_semanal.is_running():
             revisar_cierre_semanal.start()
-            
-    if not self_ping_task.is_running():
-        self_ping_task.start()
             
     print(f"SAMCRO bot conectado exitosamente como {bot.user}")
 
