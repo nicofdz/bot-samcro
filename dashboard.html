@@ -882,6 +882,34 @@
   </div>
 </div>
 
+<!-- Modal Editar Horas de Turno -->
+<div id="editarHorasModal" class="modal-backdrop hidden" onclick="cerrarEditarHorasModal()">
+  <div class="modal-content card" style="max-width: 420px; width: 95%; padding: 28px; background: rgba(18, 20, 26, 0.97); backdrop-filter: blur(12px); border: 1px solid var(--border); border-radius: 16px;" onclick="event.stopPropagation()">
+    <div class="modal-header" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; border-bottom: 1px solid var(--border); padding-bottom: 12px;">
+      <h3 style="font-size: 16px; font-weight: 700; margin: 0; color: var(--text-primary); display: flex; align-items: center; gap: 8px;">
+        <i class="fa-solid fa-pen-to-square" style="color: #e6b00f;"></i> Ajustar Horas del Turno
+      </h3>
+      <button class="close-btn" type="button" onclick="cerrarEditarHorasModal()">&times;</button>
+    </div>
+    <p id="editarHorasInfo" style="font-size: 13px; color: var(--text-secondary); margin-bottom: 16px;"></p>
+    <label style="font-size: 12px; color: var(--text-secondary); font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; display: block; margin-bottom: 6px;">
+      Horas a registrar
+    </label>
+    <input id="editarHorasInput" type="number" min="0" step="0.25" placeholder="Ej: 3.5"
+      style="width: 100%; padding: 10px 14px; background: var(--surface-2); border: 1px solid var(--border); border-radius: 8px; color: var(--text-primary); font-size: 15px; font-weight: 700; box-sizing: border-box; margin-bottom: 20px;">
+    <div style="display: flex; gap: 10px; justify-content: flex-end;">
+      <button type="button" onclick="cerrarEditarHorasModal()"
+        style="padding: 9px 18px; border-radius: 8px; border: 1px solid var(--border); background: var(--surface-1); color: var(--text-secondary); font-size: 13px; font-weight: 600; cursor: pointer;">
+        Cancelar
+      </button>
+      <button type="button" onclick="confirmarEditarHoras()"
+        style="padding: 9px 18px; border-radius: 8px; border: none; background: #e6b00f; color: #000; font-size: 13px; font-weight: 800; cursor: pointer; display: flex; align-items: center; gap: 6px;">
+        <i class="fa-solid fa-check"></i> Guardar horas
+      </button>
+    </div>
+  </div>
+</div>
+
 <script>
 const SECCIONES = {
   mecanica:  { label: '<i class="fa-solid fa-wrench"></i> Mecánica',         varColor: "--series-mecanica" },
@@ -1766,11 +1794,13 @@ function renderDetallesTab() {
           <td style="padding:10px 8px; font-weight:700; color:#2cd499;" class="num">${pago}</td>
           <td style="padding:10px 8px; font-size:13px; max-width:220px; word-wrap:break-word;">${nota}</td>
           <td style="padding:10px 8px; text-align:center; font-size:12px; color:var(--text-secondary); white-space:nowrap;">${fecha}</td>
-          <td style="padding:10px 8px; text-align:center;">
+          <td style="padding:10px 8px; text-align:center; display:flex; gap:6px; justify-content:center; flex-wrap:wrap;">
+            <button onclick="abrirEditarHorasModal(${r.id}, ${r.horas})" style="background:rgba(230,176,15,0.15); color:#e6b00f; border:1px solid rgba(230,176,15,0.3); font-size:11px; border-radius:6px; padding:4px 8px; font-weight:700; cursor:pointer;" title="Ajustar horas de este turno"><i class="fa-solid fa-pen-to-square"></i> Editar</button>
             <button onclick="anularRegistro(${r.id}, true)" style="background:rgba(245,101,101,0.15); color:#f56565; border:1px solid rgba(245,101,101,0.3); font-size:11px; border-radius:6px; padding:4px 8px; font-weight:700; cursor:pointer;" title="Anular este turno"><i class="fa-solid fa-ban"></i> Anular</button>
           </td>
         </tr>
       `;
+
     }).join("");
 
   } else if (currentDetalleTab === "anulados") {
@@ -1830,6 +1860,57 @@ function cerrarDetallesModal() {
 function handleBackdropClick(e) {
   if (e.target.id === "detailsModal") {
     cerrarDetallesModal();
+  }
+}
+
+// ---- Editar Horas de Turno ----
+let _editarHorasRegistroId = null;
+let _editarHorasActuales = 0;
+
+function abrirEditarHorasModal(registroId, horasActuales) {
+  _editarHorasRegistroId = registroId;
+  _editarHorasActuales = horasActuales;
+  document.getElementById("editarHorasInfo").textContent =
+    `Horas actuales registradas: ${horasActuales} h. Ingresa el nuevo valor corregido.`;
+  document.getElementById("editarHorasInput").value = horasActuales;
+  document.getElementById("editarHorasModal").classList.remove("hidden");
+  setTimeout(() => document.getElementById("editarHorasInput").focus(), 100);
+}
+
+function cerrarEditarHorasModal() {
+  document.getElementById("editarHorasModal").classList.add("hidden");
+  _editarHorasRegistroId = null;
+}
+
+async function confirmarEditarHoras() {
+  const horasNuevas = parseFloat(document.getElementById("editarHorasInput").value);
+  if (isNaN(horasNuevas) || horasNuevas < 0) {
+    alert("Ingresa un número válido de horas (mayor o igual a 0).");
+    return;
+  }
+  if (!_editarHorasRegistroId) return;
+
+  try {
+    const res = await fetch(`/api/registros/${_editarHorasRegistroId}/horas`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ horas: horasNuevas })
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || "Error al editar horas");
+
+    // Actualizar el registro en memoria para que la tabla se refresque
+    const target = currentRegistrosDetalle.find(r => r.id === _editarHorasRegistroId);
+    if (target) {
+      target.horas = horasNuevas;
+    }
+
+    cerrarEditarHorasModal();
+    recalcularMetricasModal();
+    renderDetallesTab();
+    if (typeof cargarDatosReales === "function") cargarDatosReales();
+  } catch (err) {
+    alert(`Error: ${err.message}`);
   }
 }
 

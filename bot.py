@@ -189,6 +189,46 @@ async def handle_anular_registro(request):
         return web.json_response({"error": str(e)}, status=500)
 
 
+async def handle_editar_horas(request):
+    """Permite ajustar las horas de un registro de turno (reducir o corregir)."""
+    try:
+        user = request["user"]
+        registro_id = int(request.match_info.get("id"))
+        payload = await request.json()
+        horas_nuevas = payload.get("horas")
+
+        # Validar el valor recibido
+        if horas_nuevas is None:
+            return web.json_response({"error": "Falta el campo 'horas'"}, status=400)
+        try:
+            horas_nuevas = float(horas_nuevas)
+        except (ValueError, TypeError):
+            return web.json_response({"error": "El valor de horas debe ser un número"}, status=400)
+        if horas_nuevas < 0:
+            return web.json_response({"error": "Las horas no pueden ser negativas"}, status=400)
+
+        # Verificar que el registro existe
+        reg = await db.obtener_registro_por_id(registro_id)
+        if not reg:
+            return web.json_response({"error": "Registro no encontrado"}, status=404)
+
+        # Solo aplica a registros de tipo horas (no servicios)
+        if reg.get("tipo") == "servicio":
+            return web.json_response({"error": "No se pueden editar horas de un registro de servicio"}, status=400)
+
+        # Verificar permisos de sección
+        user_permisos = json.loads(user["permisos"])
+        if not (reg["seccion"] in user_permisos or "consolidado" in user_permisos):
+            return web.json_response({"error": "No autorizado para esta sección"}, status=403)
+
+        res = await db.editar_horas_registro(registro_id, horas_nuevas, user["username"])
+        return web.json_response({"success": True, "registro": res})
+    except Exception as e:
+        return web.json_response({"error": str(e)}, status=500)
+
+
+
+
 async def handle_api_login(request):
     try:
         payload = await request.json()
@@ -388,6 +428,7 @@ async def iniciar_servidor_web():
     app.router.add_put("/api/registros/{id}/anular", handle_anular_registro)
     app.router.add_put("/api/mi-password", handle_cambiar_mi_password)
     app.router.add_post("/api/admin/limpiar-bdd", handle_limpiar_bdd)
+    app.router.add_put("/api/registros/{id}/horas", handle_editar_horas)
     
     os.makedirs("uploads", exist_ok=True)
     app.router.add_static("/uploads", "uploads")

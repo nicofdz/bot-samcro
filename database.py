@@ -304,6 +304,18 @@ async def restaurar_registro(registro_id: int, restaurado_por: str = "admin"):
     return await _fetch_one("SELECT * FROM registros WHERE id = ?", (registro_id,))
 
 
+async def editar_horas_registro(registro_id: int, horas_nuevas: float, editado_por: str = "admin"):
+    """Ajusta las horas de un registro de turno (tipo='horas'). Solo aplica a registros de tipo horas."""
+    nota_extra = f" [Horas ajustadas por {editado_por}]"
+    await _execute(
+        "UPDATE registros SET horas = ? WHERE id = ? AND tipo != 'servicio'",
+        (horas_nuevas, registro_id)
+    )
+    return await _fetch_one("SELECT * FROM registros WHERE id = ?", (registro_id,))
+
+
+
+
 async def obtener_registros_semana(seccion: str, inicio_iso: str, fin_iso: str,
                                     discord_id: str = None, solo_validados: bool = True):
     query = """SELECT id, discord_id, nombre, seccion, tipo, horas, servicio_nombre, monto, comision, nota,
