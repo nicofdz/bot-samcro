@@ -86,6 +86,10 @@ async def handle_api_nomina(request):
 
         inicio_utc, fin_utc, inicio_local, fin_local = obtener_rango_semana(offset)
         guild = bot.get_guild(int(GUILD_ID)) if GUILD_ID else None
+        
+        # Consultar checklist de pagos de la semana
+        pagos_checklist = await db.obtener_checklist_pagos_semana(inicio_utc.isoformat())
+        
         data = {}
         for seccion_key in config.SECCIONES.keys():
             if seccion_key in user_permisos or "consolidado" in user_permisos:
@@ -98,12 +102,15 @@ async def handle_api_nomina(request):
                         "nServicios": v["n_servicios"],
                         "comisiones": v["pago_comisiones"],
                         "total": v["total"],
-                        "esJefe": v.get("es_jefe", False)
+                        "esJefe": v.get("es_jefe", False),
+                        "pagado": bool(pagos_checklist.get(f"{seccion_key}_{v['nombre']}")),
+                        "pagado_por": pagos_checklist.get(f"{seccion_key}_{v['nombre']}", {}).get("pagado_por")
                     }
                     for v in resumen.values()
                 ]
             else:
                 data[seccion_key] = []
+
                 
         # Solo mostrar turnos activos en tiempo real si estamos en la semana actual (offset == 0)
         if offset == 0:
@@ -270,6 +277,32 @@ async def handle_editar_horas(request):
         return web.json_response({"success": True, "registro": res})
     except Exception as e:
         return web.json_response({"error": str(e)}, status=500)
+
+
+async def handle_marcar_pago(request):
+    """Permite a jefes/liderazgo marcar o desmarcar a un trabajador como pagado en la checklist."""
+    try:
+        user = request["user"]
+        user_permisos = json.loads(user["permisos"])
+        payload = await request.json()
+        seccion = payload.get("seccion")
+        nombre = payload.get("nombre")
+        pagado = bool(payload.get("pagado", True))
+        offset = int(payload.get("offset", 0))
+
+        if not seccion or not nombre:
+            return web.json_response({"error": "Faltan parámetros requeridos (seccion, nombre)"}, status=400)
+
+        if not (seccion in user_permisos or "consolidado" in user_permisos):
+            return web.json_response({"error": "No autorizado para esta sección"}, status=403)
+
+        inicio_utc, _, _, _ = obtener_rango_semana(offset)
+        await db.marcar_trabajador_pagado(inicio_utc.isoformat(), seccion, nombre, pagado, user["username"])
+        return web.json_response({"success": True, "pagado": pagado, "seccion": seccion, "nombre": nombre})
+    except Exception as e:
+        return web.json_response({"error": str(e)}, status=500)
+
+
 
 
 
@@ -481,8 +514,10 @@ async def iniciar_servidor_web():
     app.router.add_put("/api/mi-password", handle_cambiar_mi_password)
     app.router.add_post("/api/admin/limpiar-bdd", handle_limpiar_bdd)
     app.router.add_put("/api/registros/{id}/horas", handle_editar_horas)
+    app.router.add_post("/api/nomina/marcar-pagado", handle_marcar_pago)
     
     os.makedirs("uploads", exist_ok=True)
+
     app.router.add_static("/uploads", "uploads")
     app.router.add_static("/logo", "LOGO")
     

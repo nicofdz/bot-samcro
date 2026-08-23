@@ -901,9 +901,10 @@
 </div>
 
 <!-- Modal Editar Horas de Turno -->
-<div id="editarHorasModal" class="modal-backdrop hidden" onclick="cerrarEditarHorasModal()">
+<div id="editarHorasModal" class="modal-backdrop hidden" style="z-index: 100001;" onclick="cerrarEditarHorasModal()">
   <div class="modal-content card" style="max-width: 420px; width: 95%; padding: 28px; background: rgba(18, 20, 26, 0.97); backdrop-filter: blur(12px); border: 1px solid var(--border); border-radius: 16px;" onclick="event.stopPropagation()">
     <div class="modal-header" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; border-bottom: 1px solid var(--border); padding-bottom: 12px;">
+
       <h3 style="font-size: 16px; font-weight: 700; margin: 0; color: var(--text-primary); display: flex; align-items: center; gap: 8px;">
         <i class="fa-solid fa-pen-to-square" style="color: #e6b00f;"></i> Ajustar Horas del Turno
       </h3>
@@ -1231,6 +1232,10 @@ function render() {
           }
 
           const nombreSafe = encodeURIComponent(r.nombre);
+          const btnPago = r.pagado
+            ? `<button type="button" onclick="event.stopPropagation(); togglePagoTrabajador('${key}', '${nombreSafe}', false)" style="background: rgba(44, 212, 153, 0.15); color: #2cd499; border: 1px solid rgba(44, 212, 153, 0.4); padding: 5px 12px; border-radius: 8px; font-weight: 800; font-size: 11px; cursor: pointer; display: inline-flex; align-items: center; gap: 5px; transition: all 0.2s;" title="Pagado por ${r.pagado_por || 'admin'} — Clic para marcar como pendiente"><i class="fa-solid fa-circle-check"></i> Pagado</button>`
+            : `<button type="button" onclick="event.stopPropagation(); togglePagoTrabajador('${key}', '${nombreSafe}', true)" style="background: rgba(230, 176, 15, 0.12); color: #e6b00f; border: 1px solid rgba(230, 176, 15, 0.3); padding: 5px 12px; border-radius: 8px; font-weight: 700; font-size: 11px; cursor: pointer; display: inline-flex; align-items: center; gap: 5px; transition: all 0.2s;" title="Clic para marcar como PAGADO"><i class="fa-regular fa-circle"></i> Pendiente</button>`;
+
           return `
             <tr onclick="verDetallesTrabajador('${key}', '${nombreSafe}')" style="cursor: pointer;" title="Haz clic para ver registros individuales">
               <td class="name" style="text-decoration: underline; font-weight: 600; color: var(--text-primary);">${r.nombre}${jefeBadge}${enTurnoBadge}</td>
@@ -1239,9 +1244,10 @@ function render() {
               <td class="num">${r.nServicios}</td>
               <td class="num">${fmtCLP(r.comisiones)}</td>
               <td class="num total">${fmtCLP(r.total)}</td>
+              <td style="text-align: center;" onclick="event.stopPropagation();">${btnPago}</td>
             </tr>`;
         }).join("")
-      : `<tr><td colspan="6" class="empty-section">Sin registros coincidentes.</td></tr>`;
+      : `<tr><td colspan="7" class="empty-section">Sin registros coincidentes.</td></tr>`;
 
     const colPagoHeader = (isMecanica || true) ? "Sueldo Base / Horas" : "Pago horas";
 
@@ -1255,11 +1261,13 @@ function render() {
           <thead><tr>
             <th>Trabajador</th><th class="num">Horas</th><th class="num">${colPagoHeader}</th>
             <th class="num">Servicios</th><th class="num">Comisiones</th><th class="num">Total</th>
+            <th style="text-align: center;">Estado de Pago</th>
           </tr></thead>
           <tbody>${filas}</tbody>
         </table>
       </div>`;
   }).join("");
+
 }
 
 
@@ -1966,11 +1974,41 @@ async function confirmarEditarHoras() {
     cerrarEditarHorasModal();
     recalcularMetricasModal();
     renderDetallesTab();
-    if (typeof cargarDatosReales === "function") cargarDatosReales();
+    if (typeof cargarNominaData === "function") cargarNominaData(currentWeekOffset);
   } catch (err) {
     alert(`Error: ${err.message}`);
   }
 }
+
+async function togglePagoTrabajador(seccion, nombreRaw, marcarComoPagado) {
+  const nombre = decodeURIComponent(nombreRaw);
+  try {
+    const res = await fetch("/api/nomina/marcar-pagado", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        seccion: seccion,
+        nombre: nombre,
+        pagado: marcarComoPagado,
+        offset: currentWeekOffset
+      })
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || "Error al actualizar estado de pago");
+    
+    // Actualizar estado en memoria local
+    if (dataPorSeccion && dataPorSeccion[seccion]) {
+      const target = dataPorSeccion[seccion].find(r => r.nombre === nombre);
+      if (target) {
+        target.pagado = marcarComoPagado;
+      }
+    }
+    render();
+  } catch (err) {
+    alert(`Error: ${err.message}`);
+  }
+}
+
 
 function abrirModalLimpiarBDD() {
   document.getElementById("purgeConfirmInput").value = "";

@@ -85,6 +85,16 @@ CREATE TABLE IF NOT EXISTS turnos_activos (
     canal_id TEXT NOT NULL,
     hora_inicio TEXT NOT NULL
 );
+
+CREATE TABLE IF NOT EXISTS checklist_pagos (
+    clave TEXT PRIMARY KEY,
+    semana_inicio TEXT NOT NULL,
+    seccion TEXT NOT NULL,
+    nombre TEXT NOT NULL,
+    pagado INTEGER DEFAULT 1,
+    pagado_por TEXT,
+    pagado_en TEXT NOT NULL
+);
 """
 
 PG_SCHEMA = """
@@ -152,7 +162,18 @@ CREATE TABLE IF NOT EXISTS turnos_activos (
     canal_id TEXT NOT NULL,
     hora_inicio TEXT NOT NULL
 );
+
+CREATE TABLE IF NOT EXISTS checklist_pagos (
+    clave TEXT PRIMARY KEY,
+    semana_inicio TEXT NOT NULL,
+    seccion TEXT NOT NULL,
+    nombre TEXT NOT NULL,
+    pagado INTEGER DEFAULT 1,
+    pagado_por TEXT,
+    pagado_en TEXT NOT NULL
+);
 """
+
 
 
 def _format_sql(query: str) -> str:
@@ -403,7 +424,33 @@ async def guardar_estado(clave: str, valor: str):
     )
 
 
+# ---------- Checklist de Pagos a Trabajadores ----------
+
+async def marcar_trabajador_pagado(semana_inicio: str, seccion: str, nombre: str, pagado: bool, pagado_por: str = "admin"):
+    clave = f"{semana_inicio}_{seccion}_{nombre}"
+    now_iso = datetime.utcnow().isoformat()
+    await _execute("DELETE FROM checklist_pagos WHERE clave = ?", (clave,))
+    if pagado:
+        await _execute(
+            "INSERT INTO checklist_pagos (clave, semana_inicio, seccion, nombre, pagado, pagado_por, pagado_en) VALUES (?, ?, ?, ?, 1, ?, ?)",
+            (clave, semana_inicio, seccion, nombre, pagado_por, now_iso)
+        )
+
+
+async def obtener_checklist_pagos_semana(semana_inicio: str):
+    rows = await _fetch_all(
+        "SELECT seccion, nombre, pagado_por, pagado_en FROM checklist_pagos WHERE semana_inicio = ? AND pagado = 1",
+        (semana_inicio,)
+    )
+    pagados = {}
+    for r in rows:
+        clave = f"{r['seccion']}_{r['nombre']}"
+        pagados[clave] = {"pagado_por": r.get("pagado_por"), "pagado_en": r.get("pagado_en")}
+    return pagados
+
+
 # ---------- Autenticación, Hashing y Usuarios ----------
+
 import hashlib
 
 def hash_password(password: str) -> str:
