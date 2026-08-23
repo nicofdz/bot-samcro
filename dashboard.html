@@ -930,10 +930,9 @@
 </div>
 
 <!-- Modal Editar Horas de Turno -->
-<div id="editarHorasModal" class="modal-backdrop hidden" style="z-index: 100001;" onclick="cerrarEditarHorasModal()">
-  <div class="modal-content card" style="max-width: 420px; width: 95%; padding: 28px; background: rgba(18, 20, 26, 0.97); backdrop-filter: blur(12px); border: 1px solid var(--border); border-radius: 16px;" onclick="event.stopPropagation()">
-    <div class="modal-header" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; border-bottom: 1px solid var(--border); padding-bottom: 12px;">
-
+<div id="editarHorasModal" class="modal-backdrop hidden" style="z-index: 100005; display: none;" onclick="handleEditarHorasBackdropClick(event)">
+  <div class="modal-content card" style="max-width: 420px; width: 95%; padding: 28px; background: rgba(18, 20, 26, 0.98); backdrop-filter: blur(16px); border: 1px solid var(--border); border-radius: 16px;" onclick="event.stopPropagation()">
+    <div class="modal-header" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; border-bottom: 1px solid var(--border); padding-bottom: 12px;">
       <h3 style="font-size: 16px; font-weight: 700; margin: 0; color: var(--text-primary); display: flex; align-items: center; gap: 8px;">
         <i class="fa-solid fa-pen-to-square" style="color: #e6b00f;"></i> Ajustar Horas del Turno
       </h3>
@@ -943,11 +942,11 @@
     
     <!-- Botones rápidos de descuento -->
     <div style="display: flex; gap: 6px; margin-bottom: 16px; flex-wrap: wrap;">
-      <button type="button" onclick="descontarHorasModal(1)" class="btn" style="padding: 4px 10px; font-size: 11px; font-weight: 700; border-radius: 6px;">-1 h</button>
-      <button type="button" onclick="descontarHorasModal(2)" class="btn" style="padding: 4px 10px; font-size: 11px; font-weight: 700; border-radius: 6px;">-2 h</button>
-      <button type="button" onclick="descontarHorasModal(5)" class="btn" style="padding: 4px 10px; font-size: 11px; font-weight: 700; border-radius: 6px;">-5 h</button>
-      <button type="button" onclick="descontarHorasModal(10)" class="btn" style="padding: 4px 10px; font-size: 11px; font-weight: 700; border-radius: 6px;">-10 h</button>
-      <button type="button" onclick="setHorasModal(0)" class="btn" style="padding: 4px 10px; font-size: 11px; font-weight: 700; border-radius: 6px; color: #f56565; border-color: rgba(245,101,101,0.3);">Poner en 0</button>
+      <button type="button" onclick="descontarHorasModal(1)" class="btn" style="padding: 5px 10px; font-size: 11px; font-weight: 700; border-radius: 6px;">-1 h</button>
+      <button type="button" onclick="descontarHorasModal(2)" class="btn" style="padding: 5px 10px; font-size: 11px; font-weight: 700; border-radius: 6px;">-2 h</button>
+      <button type="button" onclick="descontarHorasModal(5)" class="btn" style="padding: 5px 10px; font-size: 11px; font-weight: 700; border-radius: 6px;">-5 h</button>
+      <button type="button" onclick="descontarHorasModal(10)" class="btn" style="padding: 5px 10px; font-size: 11px; font-weight: 700; border-radius: 6px;">-10 h</button>
+      <button type="button" onclick="setHorasModal(0)" class="btn" style="padding: 5px 10px; font-size: 11px; font-weight: 700; border-radius: 6px; color: #f56565; border-color: rgba(245,101,101,0.3);">Poner en 0</button>
     </div>
 
     <label style="font-size: 12px; color: var(--text-secondary); font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; display: block; margin-bottom: 6px;">
@@ -968,6 +967,7 @@
     </div>
   </div>
 </div>
+
 
 <script>
 const SECCIONES = {
@@ -1908,9 +1908,10 @@ function renderDetallesTab() {
           <td style="padding:10px 8px; font-size:13px; max-width:220px; word-wrap:break-word;">${nota}</td>
           <td style="padding:10px 8px; text-align:center; font-size:12px; color:var(--text-secondary); white-space:nowrap;">${fecha}</td>
           <td style="padding:10px 8px; text-align:center; display:flex; gap:6px; justify-content:center; flex-wrap:wrap;">
-            <button onclick="abrirEditarHorasModal(${r.id}, ${r.horas})" style="background:rgba(230,176,15,0.15); color:#e6b00f; border:1px solid rgba(230,176,15,0.3); font-size:11px; border-radius:6px; padding:4px 8px; font-weight:700; cursor:pointer;" title="Ajustar horas de este turno"><i class="fa-solid fa-pen-to-square"></i> Editar</button>
-            <button onclick="anularRegistro(${r.id}, true)" style="background:rgba(245,101,101,0.15); color:#f56565; border:1px solid rgba(245,101,101,0.3); font-size:11px; border-radius:6px; padding:4px 8px; font-weight:700; cursor:pointer;" title="Anular este turno"><i class="fa-solid fa-ban"></i> Anular</button>
+            <button type="button" onclick="event.stopPropagation(); abrirEditarHorasModal(${r.id}, ${r.horas}, event)" style="background:rgba(230,176,15,0.18); color:#e6b00f; border:1px solid rgba(230,176,15,0.4); font-size:11px; border-radius:6px; padding:4px 10px; font-weight:800; cursor:pointer;" title="Ajustar horas de este turno"><i class="fa-solid fa-pen-to-square"></i> Editar</button>
+            <button type="button" onclick="event.stopPropagation(); anularRegistro(${r.id}, true)" style="background:rgba(245,101,101,0.15); color:#f56565; border:1px solid rgba(245,101,101,0.3); font-size:11px; border-radius:6px; padding:4px 8px; font-weight:700; cursor:pointer;" title="Anular este turno"><i class="fa-solid fa-ban"></i> Anular</button>
           </td>
+
         </tr>
       `;
 
@@ -1980,43 +1981,86 @@ function handleBackdropClick(e) {
 let _editarHorasRegistroId = null;
 let _editarHorasActuales = 0;
 
+function handleEditarHorasBackdropClick(e) {
+  if (e.target.id === "editarHorasModal") {
+    cerrarEditarHorasModal();
+  }
+}
+
 function descontarHorasModal(cantidad) {
   const input = document.getElementById("editarHorasInput");
+  if (!input) return;
   const actual = parseFloat(input.value) || 0;
   const nuevo = Math.max(0, Math.round((actual - cantidad) * 100) / 100);
   input.value = nuevo;
 }
 
 function setHorasModal(val) {
-  document.getElementById("editarHorasInput").value = val;
+  const input = document.getElementById("editarHorasInput");
+  if (input) input.value = val;
 }
 
-function abrirEditarHorasModal(registroId, horasActuales) {
-  _editarHorasRegistroId = registroId;
-  _editarHorasActuales = horasActuales;
-  document.getElementById("editarHorasInfo").textContent =
-    `Horas actuales registradas: ${horasActuales} h. Puedes usar los botones de descuento o escribir el valor exacto.`;
-  document.getElementById("editarHorasInput").value = horasActuales;
-  document.getElementById("editarHorasModal").classList.remove("hidden");
-  setTimeout(() => document.getElementById("editarHorasInput").focus(), 100);
-}
+function abrirEditarHorasModal(registroId, horasActuales, evt) {
+  if (evt && typeof evt.stopPropagation === "function") {
+    evt.stopPropagation();
+  }
+  _editarHorasRegistroId = Number(registroId);
+  _editarHorasActuales = Number(horasActuales) || 0;
 
+  const modalEl = document.getElementById("editarHorasModal");
+  const inputEl = document.getElementById("editarHorasInput");
+  const infoEl = document.getElementById("editarHorasInfo");
+
+  if (infoEl) {
+    infoEl.textContent = `Horas actuales registradas: ${_editarHorasActuales} h. Puedes usar los botones de descuento o escribir el valor exacto.`;
+  }
+  if (inputEl) {
+    inputEl.value = _editarHorasActuales;
+  }
+  if (modalEl) {
+    modalEl.style.display = "flex";
+    modalEl.classList.remove("hidden");
+    setTimeout(() => {
+      if (inputEl) inputEl.focus();
+    }, 50);
+  } else {
+    // Fallback con prompt directo si no existe el modal en el DOM
+    const nuevoValor = prompt(`Ajustar horas del turno (actual: ${_editarHorasActuales} h):`, _editarHorasActuales);
+    if (nuevoValor !== null && nuevoValor !== "") {
+      const parsed = parseFloat(nuevoValor);
+      if (!isNaN(parsed) && parsed >= 0) {
+        ejecutarGuardadoHoras(registroId, parsed);
+      }
+    }
+  }
+}
 
 function cerrarEditarHorasModal() {
-  document.getElementById("editarHorasModal").classList.add("hidden");
+  const modalEl = document.getElementById("editarHorasModal");
+  if (modalEl) {
+    modalEl.style.display = "none";
+    modalEl.classList.add("hidden");
+  }
   _editarHorasRegistroId = null;
 }
 
 async function confirmarEditarHoras() {
-  const horasNuevas = parseFloat(document.getElementById("editarHorasInput").value);
+  const inputEl = document.getElementById("editarHorasInput");
+  const horasNuevas = parseFloat(inputEl ? inputEl.value : 0);
   if (isNaN(horasNuevas) || horasNuevas < 0) {
     alert("Ingresa un número válido de horas (mayor o igual a 0).");
     return;
   }
-  if (!_editarHorasRegistroId) return;
+  if (!_editarHorasRegistroId) {
+    alert("No se identificó el registro a editar.");
+    return;
+  }
+  await ejecutarGuardadoHoras(_editarHorasRegistroId, horasNuevas);
+}
 
+async function ejecutarGuardadoHoras(registroId, horasNuevas) {
   try {
-    const res = await fetch(`/api/registros/${_editarHorasRegistroId}/horas`, {
+    const res = await fetch(`/api/registros/${registroId}/horas`, {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ horas: horasNuevas })
@@ -2024,20 +2068,25 @@ async function confirmarEditarHoras() {
     const data = await res.json();
     if (!res.ok) throw new Error(data.error || "Error al editar horas");
 
-    // Actualizar el registro en memoria para que la tabla se refresque
-    const target = currentRegistrosDetalle.find(r => r.id === _editarHorasRegistroId);
-    if (target) {
-      target.horas = horasNuevas;
+    // Actualizar el registro en memoria
+    if (currentRegistrosDetalle) {
+      const target = currentRegistrosDetalle.find(r => Number(r.id) === Number(registroId));
+      if (target) {
+        target.horas = horasNuevas;
+      }
     }
 
     cerrarEditarHorasModal();
     recalcularMetricasModal();
     renderDetallesTab();
-    if (typeof cargarNominaData === "function") cargarNominaData(currentWeekOffset);
+    if (typeof cargarNominaData === "function") {
+      cargarNominaData(currentWeekOffset);
+    }
   } catch (err) {
     alert(`Error: ${err.message}`);
   }
 }
+
 
 async function togglePagoTrabajador(seccion, nombreRaw, marcarComoPagado) {
   const nombre = decodeURIComponent(nombreRaw);
