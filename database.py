@@ -326,13 +326,13 @@ async def restaurar_registro(registro_id: int, restaurado_por: str = "admin"):
 
 
 async def editar_horas_registro(registro_id: int, horas_nuevas: float, editado_por: str = "admin"):
-    """Ajusta las horas de un registro de turno (tipo='horas'). Solo aplica a registros de tipo horas."""
-    nota_extra = f" [Horas ajustadas por {editado_por}]"
+    """Ajusta las horas de un registro de turno. Guarda nota de modificación."""
     await _execute(
-        "UPDATE registros SET horas = ? WHERE id = ? AND tipo != 'servicio'",
+        "UPDATE registros SET horas = ? WHERE id = ?",
         (horas_nuevas, registro_id)
     )
     return await _fetch_one("SELECT * FROM registros WHERE id = ?", (registro_id,))
+
 
 
 

@@ -939,12 +939,23 @@
       </h3>
       <button class="close-btn" type="button" onclick="cerrarEditarHorasModal()">&times;</button>
     </div>
-    <p id="editarHorasInfo" style="font-size: 13px; color: var(--text-secondary); margin-bottom: 16px;"></p>
+    <p id="editarHorasInfo" style="font-size: 13px; color: var(--text-secondary); margin-bottom: 14px;"></p>
+    
+    <!-- Botones rápidos de descuento -->
+    <div style="display: flex; gap: 6px; margin-bottom: 16px; flex-wrap: wrap;">
+      <button type="button" onclick="descontarHorasModal(1)" class="btn" style="padding: 4px 10px; font-size: 11px; font-weight: 700; border-radius: 6px;">-1 h</button>
+      <button type="button" onclick="descontarHorasModal(2)" class="btn" style="padding: 4px 10px; font-size: 11px; font-weight: 700; border-radius: 6px;">-2 h</button>
+      <button type="button" onclick="descontarHorasModal(5)" class="btn" style="padding: 4px 10px; font-size: 11px; font-weight: 700; border-radius: 6px;">-5 h</button>
+      <button type="button" onclick="descontarHorasModal(10)" class="btn" style="padding: 4px 10px; font-size: 11px; font-weight: 700; border-radius: 6px;">-10 h</button>
+      <button type="button" onclick="setHorasModal(0)" class="btn" style="padding: 4px 10px; font-size: 11px; font-weight: 700; border-radius: 6px; color: #f56565; border-color: rgba(245,101,101,0.3);">Poner en 0</button>
+    </div>
+
     <label style="font-size: 12px; color: var(--text-secondary); font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; display: block; margin-bottom: 6px;">
-      Horas a registrar
+      Total horas del turno
     </label>
     <input id="editarHorasInput" type="number" min="0" step="0.25" placeholder="Ej: 3.5"
-      style="width: 100%; padding: 10px 14px; background: var(--surface-2); border: 1px solid var(--border); border-radius: 8px; color: var(--text-primary); font-size: 15px; font-weight: 700; box-sizing: border-box; margin-bottom: 20px;">
+      style="width: 100%; padding: 10px 14px; background: var(--surface-2); border: 1px solid var(--border); border-radius: 8px; color: var(--text-primary); font-size: 16px; font-weight: 800; box-sizing: border-box; margin-bottom: 20px;">
+
     <div style="display: flex; gap: 10px; justify-content: flex-end;">
       <button type="button" onclick="cerrarEditarHorasModal()"
         style="padding: 9px 18px; border-radius: 8px; border: 1px solid var(--border); background: var(--surface-1); color: var(--text-secondary); font-size: 13px; font-weight: 600; cursor: pointer;">
@@ -1969,15 +1980,27 @@ function handleBackdropClick(e) {
 let _editarHorasRegistroId = null;
 let _editarHorasActuales = 0;
 
+function descontarHorasModal(cantidad) {
+  const input = document.getElementById("editarHorasInput");
+  const actual = parseFloat(input.value) || 0;
+  const nuevo = Math.max(0, Math.round((actual - cantidad) * 100) / 100);
+  input.value = nuevo;
+}
+
+function setHorasModal(val) {
+  document.getElementById("editarHorasInput").value = val;
+}
+
 function abrirEditarHorasModal(registroId, horasActuales) {
   _editarHorasRegistroId = registroId;
   _editarHorasActuales = horasActuales;
   document.getElementById("editarHorasInfo").textContent =
-    `Horas actuales registradas: ${horasActuales} h. Ingresa el nuevo valor corregido.`;
+    `Horas actuales registradas: ${horasActuales} h. Puedes usar los botones de descuento o escribir el valor exacto.`;
   document.getElementById("editarHorasInput").value = horasActuales;
   document.getElementById("editarHorasModal").classList.remove("hidden");
   setTimeout(() => document.getElementById("editarHorasInput").focus(), 100);
 }
+
 
 function cerrarEditarHorasModal() {
   document.getElementById("editarHorasModal").classList.add("hidden");

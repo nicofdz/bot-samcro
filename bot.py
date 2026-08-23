@@ -253,7 +253,7 @@ async def handle_editar_horas(request):
         if horas_nuevas is None:
             return web.json_response({"error": "Falta el campo 'horas'"}, status=400)
         try:
-            horas_nuevas = float(horas_nuevas)
+            horas_nuevas = round(float(horas_nuevas), 2)
         except (ValueError, TypeError):
             return web.json_response({"error": "El valor de horas debe ser un número"}, status=400)
         if horas_nuevas < 0:
@@ -262,21 +262,18 @@ async def handle_editar_horas(request):
         # Verificar que el registro existe
         reg = await db.obtener_registro_por_id(registro_id)
         if not reg:
-            return web.json_response({"error": "Registro no encontrado"}, status=404)
-
-        # Solo aplica a registros de tipo horas (no servicios)
-        if reg.get("tipo") == "servicio":
-            return web.json_response({"error": "No se pueden editar horas de un registro de servicio"}, status=400)
+            return web.json_response({"error": "Registro no encontrado en la base de datos"}, status=404)
 
         # Verificar permisos de sección
-        user_permisos = json.loads(user["permisos"])
-        if not (reg["seccion"] in user_permisos or "consolidado" in user_permisos):
+        user_permisos = json.loads(user["permisos"]) if isinstance(user.get("permisos"), str) else user.get("permisos", [])
+        if not (user.get("rol") == "superadmin" or "consolidado" in user_permisos or reg.get("seccion") in user_permisos):
             return web.json_response({"error": "No autorizado para esta sección"}, status=403)
 
         res = await db.editar_horas_registro(registro_id, horas_nuevas, user["username"])
-        return web.json_response({"success": True, "registro": res})
+        return web.json_response({"success": True, "registro": res, "horas": horas_nuevas})
     except Exception as e:
         return web.json_response({"error": str(e)}, status=500)
+
 
 
 async def handle_marcar_pago(request):
