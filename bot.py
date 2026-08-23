@@ -393,6 +393,30 @@ async def custom_setup_hook():
     bot.add_view(PanelControlView())
     bot.add_view(FinalizarTurnoView())
 
+    # Sincronización de comandos slash — se hace UNA SOLA VEZ aquí en setup_hook,
+    # nunca en on_ready, para evitar rate limits de Discord/Cloudflare al reconectar.
+    async def _sync_commands():
+        await bot.wait_until_ready()
+        if GUILD_ID:
+            try:
+                guild_id_int = int(str(GUILD_ID).strip())
+                guild = discord.Object(id=guild_id_int)
+                bot.tree.copy_global_to(guild=guild)
+                synced = await bot.tree.sync(guild=guild)
+                print(f"✅ Comandos Slash sincronizados al servidor {guild_id_int}: {len(synced)} comandos.")
+            except Exception as e:
+                print(f"❌ Error al sincronizar comandos al servidor: {e}")
+        else:
+            try:
+                synced = await bot.tree.sync()
+                print(f"✅ Comandos Slash sincronizados globalmente: {len(synced)} comandos.")
+            except Exception as e:
+                print(f"❌ Error al sincronizar comandos globales: {e}")
+
+    bot.loop.create_task(_sync_commands())
+
+
+
 bot.setup_hook = custom_setup_hook
 
 
@@ -1069,37 +1093,20 @@ class PanelControlView(discord.ui.View):
 
 @bot.event
 async def on_ready():
-    await db.iniciar_db()
-    
     # Inicializar Super Admin automático
     admin_user = os.getenv("DASHBOARD_USER") or os.getenv("ADMIN_USERNAME", "admin")
     admin_pass = os.getenv("DASHBOARD_PASS") or os.getenv("ADMIN_PASSWORD", "samcro2026")
     if admin_user and admin_pass:
         permisos = ["consolidado"] + list(config.SECCIONES.keys())
         await db.crear_usuario(admin_user, admin_pass, "superadmin", json.dumps(permisos), debe_cambiar_password=0)
-        print(f"Super Admin '{admin_user}' creado o actualizado en la base de datos.")
 
-    # 1. Sincronización global (para cualquier servidor donde esté el bot)
-    try:
-        synced_global = await bot.tree.sync()
-        print(f"✅ Comandos Slash sincronizados globalmente: {len(synced_global)} comandos.")
-    except Exception as e:
-        print(f"❌ Error al sincronizar comandos globales: {e}")
-
-    # 2. Sincronización rápida por GUILD_ID (si está configurado)
+    # Iniciar tarea de cierre semanal (solo si no está corriendo ya)
     if GUILD_ID:
-        try:
-            guild_id_int = int(str(GUILD_ID).strip())
-            guild = discord.Object(id=guild_id_int)
-            bot.tree.copy_global_to(guild=guild)
-            synced_guild = await bot.tree.sync(guild=guild)
-            print(f"✅ Comandos Slash sincronizados instantáneamente al servidor {guild_id_int}: {len(synced_guild)} comandos.")
-        except Exception as e:
-            print(f"❌ Error al sincronizar comandos al servidor {GUILD_ID}: {e}")
         if not revisar_cierre_semanal.is_running():
             revisar_cierre_semanal.start()
-            
+
     print(f"SAMCRO bot conectado exitosamente como {bot.user}")
+
 
 
 @bot.event
