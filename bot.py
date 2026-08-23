@@ -771,22 +771,19 @@ async def calcular_nomina(seccion_key: str, inicio_utc: datetime, fin_utc: datet
             resumen[did]["pago_comisiones"] += r["comision"]
 
     for did, datos in resumen.items():
-        member = None
+        es_jefe = False
         if guild and did.isdigit():
             member = guild.get_member(int(did))
-            if not member:
-                try:
-                    member = await guild.fetch_member(int(did))
-                except Exception:
-                    member = None
+            if member:
+                es_jefe = es_jefe_de_seccion(member, seccion_key)
 
-        es_jefe = es_jefe_de_seccion(member, seccion_key) if member else False
         if not es_jefe:
             target_user = await db.obtener_usuario(datos["nombre"])
             if target_user and target_user.get("rol") in ["superadmin", "jefe"]:
                 es_jefe = True
 
         datos["es_jefe"] = es_jefe
+
 
         if es_jefe:
             if datos["horas"] >= config.HORAS_MINIMAS_SUELDO_BASE:

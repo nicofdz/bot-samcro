@@ -102,7 +102,33 @@
   footer { color: var(--text-muted); font-size: 12px; margin-top: 30px; line-height: 1.6; }
   .hidden { display: none !important; }
 
+  /* Selector de Semanas y Opciones Oscuras */
+  select {
+    color-scheme: dark;
+  }
+  select option {
+    background-color: #1a1d24 !important;
+    color: #f0f3f8 !important;
+    padding: 8px 12px;
+  }
+
+  /* Spinner de Carga */
+  .spinner {
+    width: 14px;
+    height: 14px;
+    border: 2px solid rgba(230, 176, 15, 0.2);
+    border-top-color: #e6b00f;
+    border-radius: 50%;
+    animation: spin 0.6s linear infinite;
+    display: inline-block;
+    vertical-align: middle;
+  }
+  @keyframes spin {
+    to { transform: rotate(360deg); }
+  }
+
   /* Lobby Menu Styles */
+
   .lobby-container {
     max-width: 900px;
     margin: 40px auto;
@@ -483,6 +509,7 @@
           <i class="fa-solid fa-calendar-days" style="color: #e6b00f; font-size: 15px;"></i>
           <select id="lobbySemanaSelect" onchange="cambiarSemana(this.value)" style="background: transparent; color: var(--text-primary); border: none; font-size: 13px; font-weight: 700; outline: none; cursor: pointer;">
           </select>
+          <div id="lobbyWeekLoadingSpinner" class="spinner hidden"></div>
         </div>
         <div style="display: flex; gap: 10px;">
           <button class="btn" id="adminBtn" onclick="irAAdmin()" type="button" style="display: none; align-items: center; gap: 6px;"><i class="fa-solid fa-gears"></i> Usuarios</button>
@@ -537,10 +564,12 @@
             <i class="fa-solid fa-calendar-days" style="color: #e6b00f; font-size: 14px;"></i>
             <select id="semanaSelect" onchange="cambiarSemana(this.value)" style="background: transparent; color: var(--text-primary); border: none; font-size: 13px; font-weight: 700; outline: none; cursor: pointer;">
             </select>
+            <div id="weekLoadingSpinner" class="spinner hidden"></div>
           </div>
           <button class="theme-toggle" id="themeToggle" type="button"><i class="fa-solid fa-sun"></i> Modo claro</button>
         </div>
       </header>
+
 
 
       <div id="dashboard">
@@ -967,8 +996,15 @@ function actualizarSelectorSemanas(infoSemana) {
 
 async function cambiarSemana(offsetVal) {
   currentWeekOffset = parseInt(offsetVal) || 0;
-  await cargarNominaData(currentWeekOffset);
+  const spinners = [document.getElementById("weekLoadingSpinner"), document.getElementById("lobbyWeekLoadingSpinner")];
+  spinners.forEach(s => s && s.classList.remove("hidden"));
+  try {
+    await cargarNominaData(currentWeekOffset);
+  } finally {
+    spinners.forEach(s => s && s.classList.add("hidden"));
+  }
 }
+
 
 function seleccionarSeccion(seccionKey) {
   seccionSeleccionada = seccionKey;
