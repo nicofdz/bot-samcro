@@ -330,15 +330,9 @@ async def handle_limpiar_bdd(request):
         return web.json_response({"error": str(e)}, status=500)
 
 
-
-    
-async def handle_api_health(request):
-    return web.json_response({"status": "ok", "bot_ready": bot.is_ready()})
-
-
 async def auth_middleware(app, handler):
     async def middleware(request):
-        public_paths = ["/", "/api/login", "/api/logout", "/api/health"]
+        public_paths = ["/", "/api/login", "/api/logout"]
         if request.path in public_paths or request.path.startswith("/logo/"):
             return await handler(request)
             
@@ -362,7 +356,6 @@ async def auth_middleware(app, handler):
 async def iniciar_servidor_web():
     app = web.Application(middlewares=[auth_middleware])
     app.router.add_get("/", handle_dashboard)
-    app.router.add_get("/api/health", handle_api_health)
     app.router.add_post("/api/login", handle_api_login)
     app.router.add_post("/api/logout", handle_api_logout)
     app.router.add_get("/api/me", handle_api_me)
@@ -1074,7 +1067,6 @@ class PanelControlView(discord.ui.View):
 
 # ---------- Eventos ----------
 
-
 @bot.event
 async def on_ready():
     await db.iniciar_db()
@@ -1085,31 +1077,29 @@ async def on_ready():
     if admin_user and admin_pass:
         permisos = ["consolidado"] + list(config.SECCIONES.keys())
         await db.crear_usuario(admin_user, admin_pass, "superadmin", json.dumps(permisos), debe_cambiar_password=0)
+        print(f"Super Admin '{admin_user}' creado o actualizado en la base de datos.")
 
-    if not revisar_cierre_semanal.is_running():
-        revisar_cierre_semanal.start()
+    # 1. Sincronización global (para cualquier servidor donde esté el bot)
+    try:
+        synced_global = await bot.tree.sync()
+        print(f"✅ Comandos Slash sincronizados globalmente: {len(synced_global)} comandos.")
+    except Exception as e:
+        print(f"❌ Error al sincronizar comandos globales: {e}")
+
+    # 2. Sincronización rápida por GUILD_ID (si está configurado)
+    if GUILD_ID:
+        try:
+            guild_id_int = int(str(GUILD_ID).strip())
+            guild = discord.Object(id=guild_id_int)
+            bot.tree.copy_global_to(guild=guild)
+            synced_guild = await bot.tree.sync(guild=guild)
+            print(f"✅ Comandos Slash sincronizados instantáneamente al servidor {guild_id_int}: {len(synced_guild)} comandos.")
+        except Exception as e:
+            print(f"❌ Error al sincronizar comandos al servidor {GUILD_ID}: {e}")
+        if not revisar_cierre_semanal.is_running():
+            revisar_cierre_semanal.start()
             
     print(f"SAMCRO bot conectado exitosamente como {bot.user}")
-
-    # Sincronización en segundo plano para no bloquear el inicio
-    async def _sync_commands():
-        if GUILD_ID:
-            try:
-                guild_id_int = int(str(GUILD_ID).strip())
-                guild = discord.Object(id=guild_id_int)
-                bot.tree.copy_global_to(guild=guild)
-                synced_guild = await bot.tree.sync(guild=guild)
-                print(f"✅ Comandos Slash sincronizados al servidor {guild_id_int}: {len(synced_guild)} comandos.")
-            except Exception as e:
-                print(f"❌ Error al sincronizar comandos: {e}")
-        else:
-            try:
-                synced_global = await bot.tree.sync()
-                print(f"✅ Comandos Slash sincronizados globalmente: {len(synced_global)} comandos.")
-            except Exception as e:
-                print(f"❌ Error al sincronizar comandos globales: {e}")
-
-    bot.loop.create_task(_sync_commands())
 
 
 @bot.event
