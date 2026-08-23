@@ -457,7 +457,14 @@ async def auth_middleware(app, handler):
     return middleware
 
 
+_servidor_web_iniciado = False
+
 async def iniciar_servidor_web():
+    global _servidor_web_iniciado
+    if _servidor_web_iniciado:
+        return
+    _servidor_web_iniciado = True
+    
     app = web.Application(middlewares=[auth_middleware])
     app.router.add_get("/", handle_dashboard)
     app.router.add_post("/api/login", handle_api_login)
@@ -485,6 +492,7 @@ async def iniciar_servidor_web():
     site = web.TCPSite(runner, "0.0.0.0", port)
     await site.start()
     print(f"Servidor web del Dashboard iniciado en http://localhost:{port}")
+
 
 
 async def custom_setup_hook():
@@ -1833,7 +1841,41 @@ async def antes_de_revisar():
     await bot.wait_until_ready()
 
 
-if __name__ == "__main__":
+async def main():
     if not TOKEN:
         raise SystemExit("Falta DISCORD_TOKEN en tu archivo .env (copia .env.example y complétalo).")
-    bot.run(TOKEN)
+    
+    # Iniciar servidor web y base de datos inmediatamente (funciona 24/7 incluso si Discord tiene rate limit)
+    await db.iniciar_db()
+    admin_user = os.getenv("DASHBOARD_USER") or os.getenv("ADMIN_USERNAME", "admin")
+    admin_pass = os.getenv("DASHBOARD_PASS") or os.getenv("ADMIN_PASSWORD", "samcro2026")
+    existing = await db.obtener_usuario(admin_user)
+    if not existing:
+        await db.crear_usuario(admin_user, admin_pass, "superadmin", json.dumps(["consolidado", "mecanica", "bar", "tatuajes", "show"]), debe_cambiar_password=0)
+    await iniciar_servidor_web()
+
+    # Bucle de conexión con Discord con reintento automático y backoff exponencial ante 429
+    retry_delay = 5
+    while True:
+        try:
+            async with bot:
+                await bot.start(TOKEN)
+        except discord.errors.HTTPException as e:
+            if getattr(e, "status", None) == 429 or "429" in str(e):
+                print(f"⚠️ Discord API Rate Limit (429). Esperando {retry_delay}s antes de reconectar...")
+                await asyncio.sleep(retry_delay)
+                retry_delay = min(retry_delay * 2, 60)
+            else:
+                print(f"❌ Error HTTP de Discord ({e}). Reintentando en 10s...")
+                await asyncio.sleep(10)
+        except Exception as e:
+            print(f"❌ Error al conectar a Discord ({e}). Reintentando en 10s...")
+            await asyncio.sleep(10)
+
+
+if __name__ == "__main__":
+    try:
+        asyncio.run(main())
+    except (KeyboardInterrupt, SystemExit):
+        pass
+
