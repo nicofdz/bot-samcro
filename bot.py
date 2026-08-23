@@ -79,7 +79,12 @@ async def handle_api_nomina(request):
         user = request["user"]
         user_permisos = json.loads(user["permisos"])
         
-        inicio_utc, fin_utc, _, _ = rango_semana_actual()
+        try:
+            offset = int(request.query.get("offset", 0))
+        except (ValueError, TypeError):
+            offset = 0
+
+        inicio_utc, fin_utc, inicio_local, fin_local = obtener_rango_semana(offset)
         guild = bot.get_guild(int(GUILD_ID)) if GUILD_ID else None
         data = {}
         for seccion_key in config.SECCIONES.keys():
@@ -99,8 +104,41 @@ async def handle_api_nomina(request):
                 ]
             else:
                 data[seccion_key] = []
-        turnos_activos = await db.obtener_todos_turnos_activos()
-        data["_turnos_activos"] = turnos_activos
+                
+        # Solo mostrar turnos activos en tiempo real si estamos en la semana actual (offset == 0)
+        if offset == 0:
+            turnos_activos = await db.obtener_todos_turnos_activos()
+            data["_turnos_activos"] = turnos_activos
+        else:
+            data["_turnos_activos"] = []
+
+        # Generar lista de semanas disponibles para el selector (semana actual + 7 anteriores)
+        semanas_disponibles = []
+        for o in range(0, -8, -1):
+            _, _, i_loc, f_loc = obtener_rango_semana(o)
+            if o == 0:
+                label = f"🟢 Semana Actual ({i_loc.strftime('%d/%m')} - {f_loc.strftime('%d/%m')})"
+            elif o == -1:
+                label = f"📁 Semana Anterior ({i_loc.strftime('%d/%m')} - {f_loc.strftime('%d/%m')})"
+            else:
+                label = f"📁 Hace {-o} semanas ({i_loc.strftime('%d/%m')} - {f_loc.strftime('%d/%m')})"
+                
+            semanas_disponibles.append({
+                "offset": o,
+                "label": label,
+                "rango": f"{i_loc.strftime('%d/%m %H:%M')} al {f_loc.strftime('%d/%m %H:%M')}",
+                "es_actual": o == 0
+            })
+            
+        data["_info_semana"] = {
+            "offset": offset,
+            "inicio_local": inicio_local.strftime('%d/%m/%Y %H:%M'),
+            "fin_local": fin_local.strftime('%d/%m/%Y %H:%M'),
+            "rango_texto": f"{inicio_local.strftime('%d-%m')} al {fin_local.strftime('%d-%m %H:%M')}",
+            "es_actual": offset == 0,
+            "semanas": semanas_disponibles
+        }
+
         return web.json_response(data)
     except Exception as e:
         return web.json_response({"error": str(e)}, status=500)
@@ -113,6 +151,11 @@ async def handle_api_detalles(request):
         
         seccion_key = request.match_info.get("seccion")
         username = request.match_info.get("username")
+        
+        try:
+            offset = int(request.query.get("offset", 0))
+        except (ValueError, TypeError):
+            offset = 0
 
         # Si se pide "_todos", verificar que tenga permiso de consolidado o de al menos una sección
         if seccion_key == "_todos":
@@ -121,7 +164,7 @@ async def handle_api_detalles(request):
         elif not (seccion_key in user_permisos or "consolidado" in user_permisos):
             return web.json_response({"error": "No autorizado para esta sección"}, status=403)
             
-        inicio_utc, fin_utc, _, _ = rango_semana_actual()
+        inicio_utc, fin_utc, _, _ = obtener_rango_semana(offset)
 
         if seccion_key == "_todos":
             # Obtener registros de TODAS las secciones para este trabajador
@@ -139,28 +182,30 @@ async def handle_api_detalles(request):
             registros = await db.obtener_registros_semana(seccion_key, inicio_utc.isoformat(), fin_utc.isoformat(), solo_validados=False)
             detalles = [r for r in registros if r.get("nombre") == username or r.get("discord_id") == username]
 
-        # Agregar turno activo si existe
-        turnos_activos = await db.obtener_todos_turnos_activos()
-        for ta in turnos_activos:
-            if ta["nombre"] == username or ta["discord_id"] == username:
-                detalles.insert(0, {
-                    "id": "activo",
-                    "tipo": "horas",
-                    "horas": 0,
-                    "servicio_nombre": None,
-                    "monto": 0,
-                    "comision": 0,
-                    "nota": f"🟢 Turno activo en {config.SECCIONES.get(ta['seccion'], {}).get('nombre_visible', ta['seccion'])}",
-                    "foto_url": None,
-                    "validado": 2,
-                    "validado_por": None,
-                    "creado_en": ta["hora_inicio"]
-                })
-                break
+        # Agregar turno activo solo si estamos en la semana actual (offset == 0)
+        if offset == 0:
+            turnos_activos = await db.obtener_todos_turnos_activos()
+            for ta in turnos_activos:
+                if ta["nombre"] == username or ta["discord_id"] == username:
+                    detalles.insert(0, {
+                        "id": "activo",
+                        "tipo": "horas",
+                        "horas": 0,
+                        "servicio_nombre": None,
+                        "monto": 0,
+                        "comision": 0,
+                        "nota": f"🟢 Turno activo en {config.SECCIONES.get(ta['seccion'], {}).get('nombre_visible', ta['seccion'])}",
+                        "foto_url": None,
+                        "validado": 2,
+                        "validado_por": None,
+                        "creado_en": ta["hora_inicio"]
+                    })
+                    break
                 
         return web.json_response(detalles)
     except Exception as e:
         return web.json_response({"error": str(e)}, status=500)
+
 
 
 
@@ -536,17 +581,35 @@ def _hora_cierre():
     return int(h), int(m)
 
 
-def rango_semana_actual():
-    """Semana activa (todavía no pagada): (inicio_utc, fin_utc, inicio_local, fin_local)."""
+def obtener_rango_semana(offset: int = 0):
+    """
+    Calcula el rango de una semana con respecto al ciclo de cierre (domingo 16:00):
+    offset = 0  -> Semana actual activa
+    offset = -1 -> Semana anterior (recién cerrada)
+    offset = -2 -> Hace 2 semanas, etc.
+    Retorna: (inicio_utc, fin_utc, inicio_local, fin_local)
+    """
     h, m = _hora_cierre()
     ahora_local = datetime.now(TZ_CLUB)
     dias_hasta_cierre = (config.DIA_CIERRE_SEMANA - ahora_local.weekday()) % 7
     fin_local = (ahora_local + timedelta(days=dias_hasta_cierre)).replace(hour=h, minute=m, second=0, microsecond=0)
     if fin_local < ahora_local:
         fin_local += timedelta(days=7)
+    
+    if offset != 0:
+        fin_local = fin_local + timedelta(weeks=offset)
+        
     inicio_local = fin_local - timedelta(days=7)
     return (inicio_local.astimezone(UTC).replace(tzinfo=None),
-            fin_local.astimezone(UTC).replace(tzinfo=None), inicio_local, fin_local)
+            fin_local.astimezone(UTC).replace(tzinfo=None),
+            inicio_local,
+            fin_local)
+
+
+def rango_semana_actual():
+    """Semana activa (todavía no pagada): (inicio_utc, fin_utc, inicio_local, fin_local)."""
+    return obtener_rango_semana(0)
+
 
 
 def semana_recien_cerrada():

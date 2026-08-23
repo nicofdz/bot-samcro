@@ -478,9 +478,16 @@
 
     <!-- LOBBY VIEW (MENU DE ENTRADA) -->
     <div id="lobbyView" class="lobby-container hidden">
-      <div style="display: flex; justify-content: flex-end; gap: 10px; margin-bottom: 24px;">
-        <button class="btn" id="adminBtn" onclick="irAAdmin()" type="button" style="display: none; align-items: center; gap: 6px;"><i class="fa-solid fa-gears"></i> Usuarios</button>
-        <button class="btn" onclick="handleLogout()" type="button" style="align-items: center; gap: 6px;"><i class="fa-solid fa-right-from-bracket"></i> Cerrar Sesión</button>
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px; flex-wrap: wrap; gap: 12px;">
+        <div style="display: inline-flex; align-items: center; gap: 10px; background: var(--surface-1); border: 1px solid var(--border); padding: 8px 14px; border-radius: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.15);">
+          <i class="fa-solid fa-calendar-days" style="color: #e6b00f; font-size: 15px;"></i>
+          <select id="lobbySemanaSelect" onchange="cambiarSemana(this.value)" style="background: transparent; color: var(--text-primary); border: none; font-size: 13px; font-weight: 700; outline: none; cursor: pointer;">
+          </select>
+        </div>
+        <div style="display: flex; gap: 10px;">
+          <button class="btn" id="adminBtn" onclick="irAAdmin()" type="button" style="display: none; align-items: center; gap: 6px;"><i class="fa-solid fa-gears"></i> Usuarios</button>
+          <button class="btn" onclick="handleLogout()" type="button" style="align-items: center; gap: 6px;"><i class="fa-solid fa-right-from-bracket"></i> Cerrar Sesión</button>
+        </div>
       </div>
       <h2>SAMCRO MC</h2>
       <h1>Portal de Nóminas</h1>
@@ -520,10 +527,21 @@
       <header>
         <div class="header-left">
           <button class="back-btn" onclick="volverAlMenu()" type="button"><i class="fa-solid fa-arrow-left"></i> Volver</button>
-          <h1 id="dashboardTitle">SAMCRO MC — Nómina semanal</h1>
+          <div>
+            <h1 id="dashboardTitle">SAMCRO MC — Nómina semanal</h1>
+            <span id="dashboardSubtitle" style="font-size: 12px; color: var(--text-secondary); display: block; margin-top: 3px; font-weight: 600;"></span>
+          </div>
         </div>
-        <button class="theme-toggle" id="themeToggle" type="button"><i class="fa-solid fa-sun"></i> Modo claro</button>
+        <div style="display: flex; align-items: center; gap: 12px; flex-wrap: wrap;">
+          <div style="display: inline-flex; align-items: center; gap: 8px; background: var(--surface-1); border: 1px solid var(--border); padding: 7px 14px; border-radius: 10px; box-shadow: 0 2px 8px rgba(0,0,0,0.1);">
+            <i class="fa-solid fa-calendar-days" style="color: #e6b00f; font-size: 14px;"></i>
+            <select id="semanaSelect" onchange="cambiarSemana(this.value)" style="background: transparent; color: var(--text-primary); border: none; font-size: 13px; font-weight: 700; outline: none; cursor: pointer;">
+            </select>
+          </div>
+          <button class="theme-toggle" id="themeToggle" type="button"><i class="fa-solid fa-sun"></i> Modo claro</button>
+        </div>
       </header>
+
 
       <div id="dashboard">
         <div class="card filter-card" style="margin-bottom: 16px;">
@@ -924,6 +942,32 @@ let seccionSeleccionada = null; // 'mecanica', 'bar', 'tatuajes', 'show', 'conso
 let currentSeccionDetalleKey = null;
 let currentRegistrosDetalle = [];
 let currentDetalleTab = "trabajos";
+let currentWeekOffset = 0;
+let infoSemanaActual = null;
+
+function actualizarSelectorSemanas(infoSemana) {
+  if (!infoSemana || !infoSemana.semanas) return;
+  const selects = [document.getElementById("semanaSelect"), document.getElementById("lobbySemanaSelect")];
+  selects.forEach(sel => {
+    if (!sel) return;
+    sel.innerHTML = infoSemana.semanas.map(s => 
+      `<option value="${s.offset}" ${s.offset === currentWeekOffset ? 'selected' : ''}>${s.label}</option>`
+    ).join("");
+  });
+  
+  const subEl = document.getElementById("dashboardSubtitle");
+  if (subEl) {
+    const badge = infoSemana.es_actual 
+      ? '<span style="background:rgba(44,212,153,0.15); color:#2cd499; border:1px solid rgba(44,212,153,0.3); padding:2px 8px; border-radius:10px; font-size:11px; font-weight:800; margin-left:6px;">EN CURSO</span>'
+      : '<span style="background:rgba(230,176,15,0.15); color:#e6b00f; border:1px solid rgba(230,176,15,0.3); padding:2px 8px; border-radius:10px; font-size:11px; font-weight:800; margin-left:6px;">CERRADA</span>';
+    subEl.innerHTML = `<i class="fa-solid fa-clock-rotate-left" style="color: #e6b00f; margin-right: 4px;"></i> Período: ${infoSemana.rango_texto} ${badge}`;
+  }
+}
+
+async function cambiarSemana(offsetVal) {
+  currentWeekOffset = parseInt(offsetVal) || 0;
+  await cargarNominaData(currentWeekOffset);
+}
 
 function seleccionarSeccion(seccionKey) {
   seccionSeleccionada = seccionKey;
@@ -936,6 +980,10 @@ function seleccionarSeccion(seccionKey) {
     : `SAMCRO MC — Nómina de ${SECCIONES[seccionKey].label}`;
   document.getElementById("dashboardTitle").innerHTML = titulo;
   
+  if (infoSemanaActual) {
+    actualizarSelectorSemanas(infoSemanaActual);
+  }
+  
   // Ocultar/mostrar gráficos si es sección individual
   const chartCard = document.getElementById("chartCard");
   if (seccionKey === "consolidado") {
@@ -946,6 +994,7 @@ function seleccionarSeccion(seccionKey) {
 
   render();
 }
+
 
 function volverAlMenu() {
   seccionSeleccionada = null;
@@ -1069,22 +1118,24 @@ function render() {
   const seccionesConDatos = seccionesFiltradas.filter(k => dataPorSeccion[k]);
 
   // Si no hay datos registrados en esta sección
+  const textoPeriodo = infoSemanaActual ? infoSemanaActual.rango_texto : "esta semana";
   if (seccionesConDatos.length === 0) {
     document.getElementById("kpis").innerHTML = `
       <div class="kpi"><div class="label">Total a pagar</div><div class="value">$0</div></div>
       <div class="kpi"><div class="label">Trabajadores con pago</div><div class="value">0</div></div>
       <div class="kpi"><div class="label">Servicios registrados</div><div class="value">0</div></div>
     `;
-    document.getElementById("sectionBars").innerHTML = '<div style="color:var(--text-muted); padding:10px;">Sin registros esta semana.</div>';
+    document.getElementById("sectionBars").innerHTML = `<div style="color:var(--text-muted); padding:10px;">Sin registros para el período ${textoPeriodo}.</div>`;
     document.getElementById("legend").innerHTML = '';
     document.getElementById("sectionTables").innerHTML = `
       <div class="card" style="padding: 30px; text-align: center; color: var(--text-secondary);">
         <i class="fa-solid fa-circle-info" style="font-size: 24px; margin-bottom: 10px; color: #4da0ff;"></i><br>
-        No hay registros activos para esta semana en <strong>${seccionSeleccionada === 'consolidado' ? 'ninguna sección' : SECCIONES[seccionSeleccionada].label}</strong>.<br>
-        <small style="color: var(--text-muted); display: inline-block; margin-top: 6px;">Los turnos y servicios registrados desde Discord aparecerán aquí automáticamente en tiempo real.</small>
+        No hay registros activos para el período <strong>${textoPeriodo}</strong> en <strong>${seccionSeleccionada === 'consolidado' ? 'ninguna sección' : SECCIONES[seccionSeleccionada].label}</strong>.<br>
+        <small style="color: var(--text-muted); display: inline-block; margin-top: 6px;">Puedes usar el selector de fecha superior para consultar semanas anteriores.</small>
       </div>`;
     return;
   }
+
 
   // Filtrar los datos locales para la vista actual
   const dataFiltrada = {};
@@ -1238,12 +1289,14 @@ async function cargarDatosReales() {
   }
 }
 
-async function cargarNominaData() {
+async function cargarNominaData(offset = currentWeekOffset) {
   try {
-    const res = await fetch("/api/nomina");
+    const res = await fetch(`/api/nomina?offset=${offset}`);
     if (!res.ok) throw new Error("No se pudo obtener la nómina de la API");
     const json = await res.json();
     dataPorSeccion = json;
+    infoSemanaActual = json._info_semana;
+    actualizarSelectorSemanas(infoSemanaActual);
     if (seccionSeleccionada) {
       render();
     }
@@ -1251,6 +1304,7 @@ async function cargarNominaData() {
     console.error("Error al cargar datos de nomina:", err);
   }
 }
+
 
 function actualizarLobbyPermisos() {
   if (window.location.protocol === "file:") {
@@ -1565,16 +1619,20 @@ async function verDetallesTrabajador(seccionKey, nombreTrabajadorRaw) {
   const tbody = document.getElementById("detailsTableBody");
   const modal = document.getElementById("detailsModal");
   
-  // Guardamos la seccion original para referencia, pero pedimos _todos al API
+  // Guardamos la seccion original para referencia, pero pedimos _todos al API con el offset de semana seleccionado
   currentSeccionDetalleKey = seccionKey;
-  titleEl.innerHTML = `Registros de ${nombreTrabajador} — <span style="color:#4da0ff; font-size:13px;">Todas las áreas</span>`;
+  const tagSemana = (infoSemanaActual && !infoSemanaActual.es_actual)
+    ? ` — <span style="color:#e6b00f; font-size:12px; font-weight:700;">(${infoSemanaActual.rango_texto})</span>`
+    : '';
+  titleEl.innerHTML = `Registros de ${nombreTrabajador} — <span style="color:#4da0ff; font-size:13px;">Todas las áreas</span>${tagSemana}`;
   tbody.innerHTML = '<tr><td colspan="5" style="text-align:center; padding:20px;">Cargando detalles...</td></tr>';
   modal.classList.remove("hidden");
   
   try {
-    const res = await fetch(`/api/detalles/_todos/${nombreTrabajador}`);
+    const res = await fetch(`/api/detalles/_todos/${nombreTrabajador}?offset=${currentWeekOffset}`);
     if (!res.ok) throw new Error("No se pudo obtener el detalle");
     currentRegistrosDetalle = await res.json();
+
     
     recalcularMetricasModal();
     
