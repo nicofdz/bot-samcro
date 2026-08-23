@@ -113,15 +113,33 @@ async def handle_api_detalles(request):
         
         seccion_key = request.match_info.get("seccion")
         username = request.match_info.get("username")
-        
-        if not (seccion_key in user_permisos or "consolidado" in user_permisos):
+
+        # Si se pide "_todos", verificar que tenga permiso de consolidado o de al menos una sección
+        if seccion_key == "_todos":
+            if "consolidado" not in user_permisos and not any(s in user_permisos for s in config.SECCIONES.keys()):
+                return web.json_response({"error": "No autorizado"}, status=403)
+        elif not (seccion_key in user_permisos or "consolidado" in user_permisos):
             return web.json_response({"error": "No autorizado para esta sección"}, status=403)
             
         inicio_utc, fin_utc, _, _ = rango_semana_actual()
-        
-        registros = await db.obtener_registros_semana(seccion_key, inicio_utc.isoformat(), fin_utc.isoformat(), solo_validados=False)
-        detalles = [r for r in registros if r.get("nombre") == username or r.get("discord_id") == username]
-        
+
+        if seccion_key == "_todos":
+            # Obtener registros de TODAS las secciones para este trabajador
+            detalles = []
+            secciones_a_consultar = [
+                s for s in config.SECCIONES.keys()
+                if "consolidado" in user_permisos or s in user_permisos
+            ]
+            for sk in secciones_a_consultar:
+                registros_sec = await db.obtener_registros_semana(sk, inicio_utc.isoformat(), fin_utc.isoformat(), solo_validados=False)
+                for r in registros_sec:
+                    if r.get("nombre") == username or r.get("discord_id") == username:
+                        detalles.append(r)
+        else:
+            registros = await db.obtener_registros_semana(seccion_key, inicio_utc.isoformat(), fin_utc.isoformat(), solo_validados=False)
+            detalles = [r for r in registros if r.get("nombre") == username or r.get("discord_id") == username]
+
+        # Agregar turno activo si existe
         turnos_activos = await db.obtener_todos_turnos_activos()
         for ta in turnos_activos:
             if ta["nombre"] == username or ta["discord_id"] == username:
@@ -143,6 +161,7 @@ async def handle_api_detalles(request):
         return web.json_response(detalles)
     except Exception as e:
         return web.json_response({"error": str(e)}, status=500)
+
 
 
 async def handle_anular_registro(request):

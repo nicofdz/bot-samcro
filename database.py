@@ -306,7 +306,7 @@ async def restaurar_registro(registro_id: int, restaurado_por: str = "admin"):
 
 async def obtener_registros_semana(seccion: str, inicio_iso: str, fin_iso: str,
                                     discord_id: str = None, solo_validados: bool = True):
-    query = """SELECT id, discord_id, nombre, tipo, horas, servicio_nombre, monto, comision, nota,
+    query = """SELECT id, discord_id, nombre, seccion, tipo, horas, servicio_nombre, monto, comision, nota,
                       foto_url, validado, validado_por, creado_en
                FROM registros
                WHERE seccion = ? AND creado_en >= ? AND creado_en < ?"""
@@ -318,6 +318,7 @@ async def obtener_registros_semana(seccion: str, inicio_iso: str, fin_iso: str,
         params.append(discord_id)
     query += " ORDER BY creado_en ASC"
     return await _fetch_all(query, tuple(params))
+
 
 
 async def obtener_registros_discord_id_semana(discord_id: str, inicio_iso: str, fin_iso: str,
