@@ -930,8 +930,9 @@
 </div>
 
 <!-- Modal Editar Horas de Turno -->
-<div id="editarHorasModal" class="modal-backdrop hidden" style="z-index: 100005; display: none;" onclick="handleEditarHorasBackdropClick(event)">
+<div id="editarHorasModal" class="modal-backdrop hidden" style="z-index: 100005;" onclick="handleEditarHorasBackdropClick(event)">
   <div class="modal-content card" style="max-width: 420px; width: 95%; padding: 28px; background: rgba(18, 20, 26, 0.98); backdrop-filter: blur(16px); border: 1px solid var(--border); border-radius: 16px;" onclick="event.stopPropagation()">
+
     <div class="modal-header" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; border-bottom: 1px solid var(--border); padding-bottom: 12px;">
       <h3 style="font-size: 16px; font-weight: 700; margin: 0; color: var(--text-primary); display: flex; align-items: center; gap: 8px;">
         <i class="fa-solid fa-pen-to-square" style="color: #e6b00f;"></i> Ajustar Horas del Turno
@@ -2008,8 +2009,12 @@ function setHorasModal(val) {
 }
 
 function abrirEditarHorasModal(registroId, horasActuales, evt) {
-  if (evt && typeof evt.stopPropagation === "function") {
-    evt.stopPropagation();
+  if (evt) {
+    try {
+      if (typeof evt.preventDefault === "function") evt.preventDefault();
+      if (typeof evt.stopPropagation === "function") evt.stopPropagation();
+      if (typeof evt.stopImmediatePropagation === "function") evt.stopImmediatePropagation();
+    } catch(e){}
   }
   _editarHorasRegistroId = Number(registroId);
   _editarHorasActuales = Number(horasActuales) || 0;
@@ -2025,22 +2030,19 @@ function abrirEditarHorasModal(registroId, horasActuales, evt) {
     inputEl.value = _editarHorasActuales;
   }
   if (modalEl) {
-    modalEl.style.display = "flex";
     modalEl.classList.remove("hidden");
+    modalEl.style.setProperty("display", "flex", "important");
     setTimeout(() => {
-      if (inputEl) inputEl.focus();
-    }, 50);
-  } else {
-    // Fallback con prompt directo si no existe el modal en el DOM
-    const nuevoValor = prompt(`Ajustar horas del turno (actual: ${_editarHorasActuales} h):`, _editarHorasActuales);
-    if (nuevoValor !== null && nuevoValor !== "") {
-      const parsed = parseFloat(nuevoValor);
-      if (!isNaN(parsed) && parsed >= 0) {
-        ejecutarGuardadoHoras(registroId, parsed);
+      if (inputEl) {
+        inputEl.focus();
+        inputEl.select();
       }
-    }
+    }, 50);
   }
 }
+
+window.abrirEditarHorasModal = abrirEditarHorasModal;
+
 
 function cerrarEditarHorasModal() {
   const modalEl = document.getElementById("editarHorasModal");
