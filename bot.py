@@ -87,13 +87,19 @@ async def handle_api_nomina(request):
         inicio_utc, fin_utc, inicio_local, fin_local = obtener_rango_semana(offset)
         guild = bot.get_guild(int(GUILD_ID)) if GUILD_ID else None
         
-        # Consultar checklist de pagos de la semana
+        # Cargar checklist, canales y usuarios de una sola vez en memoria (0 consultas en loop)
         pagos_checklist = await db.obtener_checklist_pagos_semana(inicio_utc.isoformat())
+        trabajadores_activos = await obtener_trabajadores_activos_con_canal(guild)
+        usuarios_lista = await db.listar_usuarios()
+        usuarios_db = {u["username"].lower(): u for u in usuarios_lista}
         
         data = {}
         for seccion_key in config.SECCIONES.keys():
-            if seccion_key in user_permisos or "consolidado" in user_permisos:
-                resumen = await calcular_nomina(seccion_key, inicio_utc, fin_utc, solo_validados=True, guild=guild)
+            if seccion_key in user_permisos or "consolidado" in user_permisos or user.get("rol") == "superadmin":
+                resumen = await calcular_nomina(
+                    seccion_key, inicio_utc, fin_utc, solo_validados=True, guild=guild,
+                    trabajadores_activos=trabajadores_activos, usuarios_db=usuarios_db
+                )
                 data[seccion_key] = [
                     {
                         "nombre": v["nombre"],
@@ -110,6 +116,7 @@ async def handle_api_nomina(request):
                 ]
             else:
                 data[seccion_key] = []
+
 
                 
         # Solo mostrar turnos activos en tiempo real si estamos en la semana actual (offset == 0)
@@ -695,38 +702,24 @@ def obtener_porcentaje_comision(member: discord.Member, seccion_key: str, servic
 
 async def obtener_trabajadores_activos_con_canal(guild: discord.Guild = None):
     """
-    Retorna un diccionario {discord_id: info_canal} con los trabajadores que actualmente
-    tienen un canal de bitácora activo existente en Discord.
-    Desvincula automáticamente los canales que hayan sido borrados de Discord.
+    Retorna un diccionario {discord_id: info_canal} con todos los trabajadores que
+    tienen su bitácora registrada en el bot.
     """
     canales = await db.todos_los_canales_trabajador()
     activos = {}
-    if not guild and GUILD_ID:
-        try:
-            guild = bot.get_guild(int(GUILD_ID))
-        except Exception:
-            guild = None
-    
     for c in canales:
-        canal_id_str = c["canal_id"]
-        if guild:
-            canal_obj = guild.get_channel(int(canal_id_str))
-            if not canal_obj:
-                try:
-                    await db.desvincular_canal(canal_id_str)
-                except Exception:
-                    pass
-                continue
         activos[c["discord_id"]] = c
     return activos
 
 
-async def calcular_nomina(seccion_key: str, inicio_utc: datetime, fin_utc: datetime, solo_validados=True, guild: discord.Guild = None):
+async def calcular_nomina(seccion_key: str, inicio_utc: datetime, fin_utc: datetime, solo_validados=True, guild: discord.Guild = None, trabajadores_activos: dict = None, usuarios_db: dict = None):
     seccion = config.SECCIONES[seccion_key]
     registros = await db.obtener_registros_semana(seccion_key, inicio_utc.isoformat(), fin_utc.isoformat(),
                                                     solo_validados=solo_validados)
     
-    trabajadores_activos = await obtener_trabajadores_activos_con_canal(guild)
+    if trabajadores_activos is None:
+        trabajadores_activos = await obtener_trabajadores_activos_con_canal(guild)
+    
     resumen = {}
     
     # 1. Incluir a todos los trabajadores con bitácora activa en la lista (incluso si tienen $0)
@@ -742,12 +735,9 @@ async def calcular_nomina(seccion_key: str, inicio_utc: datetime, fin_utc: datet
             "discord_id": did
         }
 
-    # 2. Acumular registros solo para trabajadores con canal activo (los borrados se omiten)
+    # 2. Acumular registros para trabajadores
     for r in registros:
         did = r["discord_id"]
-        if did not in trabajadores_activos:
-            continue
-            
         if did not in resumen:
             resumen[did] = {
                 "nombre": r["nombre"],
@@ -774,12 +764,13 @@ async def calcular_nomina(seccion_key: str, inicio_utc: datetime, fin_utc: datet
             if member:
                 es_jefe = es_jefe_de_seccion(member, seccion_key)
 
-        if not es_jefe:
-            target_user = await db.obtener_usuario(datos["nombre"])
+        if not es_jefe and usuarios_db:
+            target_user = usuarios_db.get(datos["nombre"].lower()) or usuarios_db.get(str(did))
             if target_user and target_user.get("rol") in ["superadmin", "jefe"]:
                 es_jefe = True
 
         datos["es_jefe"] = es_jefe
+
 
 
         if es_jefe:
