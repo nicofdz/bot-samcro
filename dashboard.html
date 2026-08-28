@@ -2088,18 +2088,18 @@ function handleBackdropClick(e) {
 }
 
 // ---- Event delegation para botones generados dinámicamente en el modal de detalles ----
-document.addEventListener("DOMContentLoaded", function() {
-  const detailsModal = document.getElementById("detailsModal");
+// (el script está al final del body, DOM ya está listo, NO usar DOMContentLoaded)
+(function() {
+  var detailsModal = document.getElementById("detailsModal");
   if (detailsModal) {
     detailsModal.addEventListener("click", function(e) {
-      const btn = e.target.closest("button[data-action]");
+      var btn = e.target.closest("button[data-action]");
       if (!btn) return;
       e.stopPropagation();
-      const action = btn.dataset.action;
-      const rid = Number(btn.dataset.rid);
+      var action = btn.dataset.action;
+      var rid = Number(btn.dataset.rid);
       if (action === "editar-horas") {
-        const horas = Number(btn.dataset.horas) || 0;
-        abrirDlgHoras(rid, horas);
+        abrirDlgHoras(rid, Number(btn.dataset.horas) || 0);
       } else if (action === "anular-turno") {
         anularRegistro(rid, true);
       } else if (action === "restaurar-turno") {
@@ -2107,7 +2107,8 @@ document.addEventListener("DOMContentLoaded", function() {
       }
     });
   }
-});
+})();
+
 
 // ---- Editar horas de turno (usa <dialog> nativo para evitar conflictos con .hidden) ----
 let _dlgRegistroId = null;
