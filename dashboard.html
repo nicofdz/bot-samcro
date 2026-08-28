@@ -929,47 +929,6 @@
   </div>
 </div>
 
-<!-- Modal Editar Horas de Turno -->
-<div id="editarHorasModal" class="modal-backdrop hidden" style="z-index: 100005;" onclick="handleEditarHorasBackdropClick(event)">
-  <div class="modal-content card" style="max-width: 420px; width: 95%; padding: 28px; background: rgba(18, 20, 26, 0.98); backdrop-filter: blur(16px); border: 1px solid var(--border); border-radius: 16px;" onclick="event.stopPropagation()">
-
-    <div class="modal-header" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; border-bottom: 1px solid var(--border); padding-bottom: 12px;">
-      <h3 style="font-size: 16px; font-weight: 700; margin: 0; color: var(--text-primary); display: flex; align-items: center; gap: 8px;">
-        <i class="fa-solid fa-pen-to-square" style="color: #e6b00f;"></i> Ajustar Horas del Turno
-      </h3>
-      <button class="close-btn" type="button" onclick="cerrarEditarHorasModal()">&times;</button>
-    </div>
-    <p id="editarHorasInfo" style="font-size: 13px; color: var(--text-secondary); margin-bottom: 14px;"></p>
-    
-    <!-- Botones rápidos de descuento -->
-    <div style="display: flex; gap: 6px; margin-bottom: 16px; flex-wrap: wrap;">
-      <button type="button" onclick="descontarHorasModal(1)" class="btn" style="padding: 5px 10px; font-size: 11px; font-weight: 700; border-radius: 6px;">-1 h</button>
-      <button type="button" onclick="descontarHorasModal(2)" class="btn" style="padding: 5px 10px; font-size: 11px; font-weight: 700; border-radius: 6px;">-2 h</button>
-      <button type="button" onclick="descontarHorasModal(5)" class="btn" style="padding: 5px 10px; font-size: 11px; font-weight: 700; border-radius: 6px;">-5 h</button>
-      <button type="button" onclick="descontarHorasModal(10)" class="btn" style="padding: 5px 10px; font-size: 11px; font-weight: 700; border-radius: 6px;">-10 h</button>
-      <button type="button" onclick="setHorasModal(0)" class="btn" style="padding: 5px 10px; font-size: 11px; font-weight: 700; border-radius: 6px; color: #f56565; border-color: rgba(245,101,101,0.3);">Poner en 0</button>
-    </div>
-
-    <label style="font-size: 12px; color: var(--text-secondary); font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; display: block; margin-bottom: 6px;">
-      Total horas del turno
-    </label>
-    <input id="editarHorasInput" type="number" min="0" step="0.25" placeholder="Ej: 3.5"
-      style="width: 100%; padding: 10px 14px; background: var(--surface-2); border: 1px solid var(--border); border-radius: 8px; color: var(--text-primary); font-size: 16px; font-weight: 800; box-sizing: border-box; margin-bottom: 20px;">
-
-    <div style="display: flex; gap: 10px; justify-content: flex-end;">
-      <button type="button" onclick="cerrarEditarHorasModal()"
-        style="padding: 9px 18px; border-radius: 8px; border: 1px solid var(--border); background: var(--surface-1); color: var(--text-secondary); font-size: 13px; font-weight: 600; cursor: pointer;">
-        Cancelar
-      </button>
-      <button type="button" onclick="confirmarEditarHoras()"
-        style="padding: 9px 18px; border-radius: 8px; border: none; background: #e6b00f; color: #000; font-size: 13px; font-weight: 800; cursor: pointer; display: flex; align-items: center; gap: 6px;">
-        <i class="fa-solid fa-check"></i> Guardar horas
-      </button>
-    </div>
-  </div>
-</div>
-
-
 <script>
 const SECCIONES = {
   mecanica:  { label: '<i class="fa-solid fa-wrench"></i> Mecánica',         varColor: "--series-mecanica" },
@@ -1915,9 +1874,8 @@ function renderDetallesTab() {
           <td style="padding:10px 8px; font-weight:700; color:#2cd499;" class="num">${pago}</td>
           <td style="padding:10px 8px; font-size:13px; max-width:220px; word-wrap:break-word;">${nota}</td>
           <td style="padding:10px 8px; text-align:center; font-size:12px; color:var(--text-secondary); white-space:nowrap;">${fecha}</td>
-          <td style="padding:10px 8px; text-align:center; display:flex; gap:6px; justify-content:center; flex-wrap:wrap;">
-            <button type="button" onclick="event.stopPropagation(); abrirEditarHorasModal(${r.id}, ${r.horas}, event)" style="background:rgba(230,176,15,0.18); color:#e6b00f; border:1px solid rgba(230,176,15,0.4); font-size:11px; border-radius:6px; padding:4px 10px; font-weight:800; cursor:pointer;" title="Ajustar horas de este turno"><i class="fa-solid fa-pen-to-square"></i> Editar</button>
-            <button type="button" onclick="event.stopPropagation(); anularRegistro(${r.id}, true)" style="background:rgba(245,101,101,0.15); color:#f56565; border:1px solid rgba(245,101,101,0.3); font-size:11px; border-radius:6px; padding:4px 8px; font-weight:700; cursor:pointer;" title="Anular este turno"><i class="fa-solid fa-ban"></i> Anular</button>
+          <td style="padding:10px 8px; text-align:center;">
+            <button type="button" onclick="event.stopPropagation(); anularRegistro(${r.id}, true)" style="background:rgba(245,101,101,0.15); color:#f56565; border:1px solid rgba(245,101,101,0.3); font-size:11px; border-radius:6px; padding:5px 12px; font-weight:700; cursor:pointer;" title="Anular este turno"><i class="fa-solid fa-ban"></i> Anular</button>
           </td>
 
         </tr>
@@ -1985,116 +1943,6 @@ function handleBackdropClick(e) {
   }
 }
 
-// ---- Editar Horas de Turno ----
-let _editarHorasRegistroId = null;
-let _editarHorasActuales = 0;
-
-function handleEditarHorasBackdropClick(e) {
-  if (e.target.id === "editarHorasModal") {
-    cerrarEditarHorasModal();
-  }
-}
-
-function descontarHorasModal(cantidad) {
-  const input = document.getElementById("editarHorasInput");
-  if (!input) return;
-  const actual = parseFloat(input.value) || 0;
-  const nuevo = Math.max(0, Math.round((actual - cantidad) * 100) / 100);
-  input.value = nuevo;
-}
-
-function setHorasModal(val) {
-  const input = document.getElementById("editarHorasInput");
-  if (input) input.value = val;
-}
-
-function abrirEditarHorasModal(registroId, horasActuales, evt) {
-  if (evt) {
-    try {
-      if (typeof evt.preventDefault === "function") evt.preventDefault();
-      if (typeof evt.stopPropagation === "function") evt.stopPropagation();
-      if (typeof evt.stopImmediatePropagation === "function") evt.stopImmediatePropagation();
-    } catch(e){}
-  }
-  _editarHorasRegistroId = Number(registroId);
-  _editarHorasActuales = Number(horasActuales) || 0;
-
-  const modalEl = document.getElementById("editarHorasModal");
-  const inputEl = document.getElementById("editarHorasInput");
-  const infoEl = document.getElementById("editarHorasInfo");
-
-  if (infoEl) {
-    infoEl.textContent = `Horas actuales registradas: ${_editarHorasActuales} h. Puedes usar los botones de descuento o escribir el valor exacto.`;
-  }
-  if (inputEl) {
-    inputEl.value = _editarHorasActuales;
-  }
-  if (modalEl) {
-    modalEl.classList.remove("hidden");
-    modalEl.style.setProperty("display", "flex", "important");
-    setTimeout(() => {
-      if (inputEl) {
-        inputEl.focus();
-        inputEl.select();
-      }
-    }, 50);
-  }
-}
-
-window.abrirEditarHorasModal = abrirEditarHorasModal;
-
-
-function cerrarEditarHorasModal() {
-  const modalEl = document.getElementById("editarHorasModal");
-  if (modalEl) {
-    modalEl.style.display = "none";
-    modalEl.classList.add("hidden");
-  }
-  _editarHorasRegistroId = null;
-}
-
-async function confirmarEditarHoras() {
-  const inputEl = document.getElementById("editarHorasInput");
-  const horasNuevas = parseFloat(inputEl ? inputEl.value : 0);
-  if (isNaN(horasNuevas) || horasNuevas < 0) {
-    alert("Ingresa un número válido de horas (mayor o igual a 0).");
-    return;
-  }
-  if (!_editarHorasRegistroId) {
-    alert("No se identificó el registro a editar.");
-    return;
-  }
-  await ejecutarGuardadoHoras(_editarHorasRegistroId, horasNuevas);
-}
-
-async function ejecutarGuardadoHoras(registroId, horasNuevas) {
-  try {
-    const res = await fetch(`/api/registros/${registroId}/horas`, {
-      method: "PUT",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ horas: horasNuevas })
-    });
-    const data = await res.json();
-    if (!res.ok) throw new Error(data.error || "Error al editar horas");
-
-    // Actualizar el registro en memoria
-    if (currentRegistrosDetalle) {
-      const target = currentRegistrosDetalle.find(r => Number(r.id) === Number(registroId));
-      if (target) {
-        target.horas = horasNuevas;
-      }
-    }
-
-    cerrarEditarHorasModal();
-    recalcularMetricasModal();
-    renderDetallesTab();
-    if (typeof cargarNominaData === "function") {
-      cargarNominaData(currentWeekOffset);
-    }
-  } catch (err) {
-    alert(`Error: ${err.message}`);
-  }
-}
 
 
 async function togglePagoTrabajador(seccion, nombreRaw, marcarComoPagado) {
