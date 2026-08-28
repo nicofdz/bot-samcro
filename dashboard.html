@@ -102,6 +102,120 @@
   footer { color: var(--text-muted); font-size: 12px; margin-top: 30px; line-height: 1.6; }
   .hidden { display: none !important; }
 
+  /* ---- Dialog editar horas ---- */
+  #dlgEditarHoras {
+    border: 1px solid rgba(230,176,15,0.4);
+    border-radius: 16px;
+    background: #12141a;
+    color: var(--text-primary);
+    padding: 0;
+    width: 92%;
+    max-width: 420px;
+    box-shadow: 0 24px 64px rgba(0,0,0,0.8);
+    z-index: 200000;
+  }
+  #dlgEditarHoras::backdrop {
+    background: rgba(0,0,0,0.65);
+    backdrop-filter: blur(10px);
+  }
+  #dlgEditarHoras .dlg-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 20px 24px 14px;
+    border-bottom: 1px solid rgba(255,255,255,0.08);
+  }
+  #dlgEditarHoras .dlg-body {
+    padding: 20px 24px 24px;
+  }
+  #dlgEditarHoras .dlg-title {
+    font-size: 16px;
+    font-weight: 700;
+    margin: 0;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    color: #e6b00f;
+  }
+  #dlgEditarHoras .dlg-info {
+    font-size: 13px;
+    color: var(--text-secondary);
+    margin: 0 0 16px;
+  }
+  #dlgEditarHoras .dlg-quick-btns {
+    display: flex;
+    gap: 6px;
+    flex-wrap: wrap;
+    margin-bottom: 16px;
+  }
+  #dlgEditarHoras .dlg-qbtn {
+    background: var(--surface-1);
+    border: 1px solid var(--border);
+    color: var(--text-secondary);
+    border-radius: 6px;
+    padding: 5px 10px;
+    font-size: 11px;
+    font-weight: 700;
+    cursor: pointer;
+  }
+  #dlgEditarHoras .dlg-qbtn:hover { color: var(--text-primary); }
+  #dlgEditarHoras .dlg-qbtn-red { color: #f56565 !important; border-color: rgba(245,101,101,0.3) !important; }
+  #dlgEditarHoras .dlg-label {
+    display: block;
+    font-size: 11px;
+    font-weight: 700;
+    color: var(--text-secondary);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    margin-bottom: 6px;
+  }
+  #dlgEditarHoras #dlgHorasInput {
+    width: 100%;
+    box-sizing: border-box;
+    padding: 11px 14px;
+    background: var(--surface-2);
+    border: 1px solid rgba(230,176,15,0.35);
+    border-radius: 8px;
+    color: var(--text-primary);
+    font-size: 20px;
+    font-weight: 800;
+    margin-bottom: 20px;
+    outline: none;
+  }
+  #dlgEditarHoras #dlgHorasInput:focus {
+    border-color: #e6b00f;
+  }
+  #dlgEditarHoras .dlg-footer {
+    display: flex;
+    gap: 10px;
+    justify-content: flex-end;
+  }
+  #dlgEditarHoras .dlg-cancel {
+    padding: 9px 18px;
+    border-radius: 8px;
+    border: 1px solid var(--border);
+    background: var(--surface-1);
+    color: var(--text-secondary);
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+  }
+  #dlgEditarHoras .dlg-save {
+    padding: 9px 20px;
+    border-radius: 8px;
+    border: none;
+    background: #e6b00f;
+    color: #000;
+    font-size: 13px;
+    font-weight: 800;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+  #dlgEditarHoras .dlg-save:hover { background: #f0c030; }
+
+
   /* Selector de Semanas y Opciones Oscuras */
   select {
     color-scheme: dark;
@@ -928,6 +1042,32 @@
     </div>
   </div>
 </div>
+
+<!-- Dialog nativo: Editar Horas de Turno (usa showModal() — no conflicta con .hidden) -->
+<dialog id="dlgEditarHoras">
+  <div class="dlg-header">
+    <h3 class="dlg-title"><i class="fa-solid fa-pen-to-square"></i> Ajustar Horas del Turno</h3>
+    <button class="close-btn" type="button" onclick="cerrarDlgHoras()">&times;</button>
+  </div>
+  <div class="dlg-body">
+    <p id="dlgHorasInfo" class="dlg-info"></p>
+    <div class="dlg-quick-btns">
+      <button class="dlg-qbtn" type="button" onclick="dlgDescontar(1)">-1 h</button>
+      <button class="dlg-qbtn" type="button" onclick="dlgDescontar(2)">-2 h</button>
+      <button class="dlg-qbtn" type="button" onclick="dlgDescontar(5)">-5 h</button>
+      <button class="dlg-qbtn" type="button" onclick="dlgDescontar(10)">-10 h</button>
+      <button class="dlg-qbtn dlg-qbtn-red" type="button" onclick="document.getElementById('dlgHorasInput').value=0">Poner en 0</button>
+    </div>
+    <label class="dlg-label" for="dlgHorasInput">Total horas del turno</label>
+    <input id="dlgHorasInput" type="number" min="0" step="0.25" placeholder="Ej: 3.5">
+    <div class="dlg-footer">
+      <button class="dlg-cancel" type="button" onclick="cerrarDlgHoras()">Cancelar</button>
+      <button class="dlg-save" type="button" onclick="guardarDlgHoras()">
+        <i class="fa-solid fa-check"></i> Guardar horas
+      </button>
+    </div>
+  </div>
+</dialog>
 
 <script>
 const SECCIONES = {
@@ -1875,8 +2015,12 @@ function renderDetallesTab() {
           <td style="padding:10px 8px; font-size:13px; max-width:220px; word-wrap:break-word;">${nota}</td>
           <td style="padding:10px 8px; text-align:center; font-size:12px; color:var(--text-secondary); white-space:nowrap;">${fecha}</td>
           <td style="padding:10px 8px; text-align:center;">
-            <button type="button" onclick="event.stopPropagation(); anularRegistro(${r.id}, true)" style="background:rgba(245,101,101,0.15); color:#f56565; border:1px solid rgba(245,101,101,0.3); font-size:11px; border-radius:6px; padding:5px 12px; font-weight:700; cursor:pointer;" title="Anular este turno"><i class="fa-solid fa-ban"></i> Anular</button>
+            <div style="display:flex; gap:5px; justify-content:center; flex-wrap:wrap;">
+              <button type="button" onclick="event.stopPropagation(); abrirDlgHoras(${r.id}, ${r.horas})" style="background:rgba(230,176,15,0.18); color:#e6b00f; border:1px solid rgba(230,176,15,0.4); font-size:11px; border-radius:6px; padding:5px 10px; font-weight:800; cursor:pointer;" title="Ajustar horas de este turno"><i class="fa-solid fa-pen-to-square"></i> Editar</button>
+              <button type="button" onclick="event.stopPropagation(); anularRegistro(${r.id}, true)" style="background:rgba(245,101,101,0.15); color:#f56565; border:1px solid rgba(245,101,101,0.3); font-size:11px; border-radius:6px; padding:5px 10px; font-weight:700; cursor:pointer;" title="Anular este turno"><i class="fa-solid fa-ban"></i> Anular</button>
+            </div>
           </td>
+
 
         </tr>
       `;
@@ -1942,6 +2086,82 @@ function handleBackdropClick(e) {
     cerrarDetallesModal();
   }
 }
+
+// ---- Editar horas de turno (usa <dialog> nativo para evitar conflictos con .hidden) ----
+let _dlgRegistroId = null;
+
+function abrirDlgHoras(registroId, horasActuales) {
+  _dlgRegistroId = Number(registroId);
+  const horas = Number(horasActuales) || 0;
+
+  const dlg = document.getElementById("dlgEditarHoras");
+  const inp = document.getElementById("dlgHorasInput");
+  const inf = document.getElementById("dlgHorasInfo");
+
+  if (inf) inf.textContent = `Horas actuales: ${horas} h. Puedes restar con los botones o escribir el valor exacto.`;
+  if (inp) inp.value = horas;
+
+  dlg.showModal();
+
+  // Cerrar al hacer clic en el backdrop (fuera del contenido)
+  dlg.onclick = function(e) {
+    const rect = dlg.getBoundingClientRect();
+    if (e.clientX < rect.left || e.clientX > rect.right || e.clientY < rect.top || e.clientY > rect.bottom) {
+      cerrarDlgHoras();
+    }
+  };
+
+  setTimeout(() => { if (inp) { inp.focus(); inp.select(); } }, 30);
+}
+
+function cerrarDlgHoras() {
+  const dlg = document.getElementById("dlgEditarHoras");
+  if (dlg && dlg.open) dlg.close();
+  _dlgRegistroId = null;
+}
+
+function dlgDescontar(cantidad) {
+  const inp = document.getElementById("dlgHorasInput");
+  if (!inp) return;
+  const actual = parseFloat(inp.value) || 0;
+  inp.value = Math.max(0, Math.round((actual - cantidad) * 100) / 100);
+}
+
+async function guardarDlgHoras() {
+  const inp = document.getElementById("dlgHorasInput");
+  const horasNuevas = parseFloat(inp ? inp.value : "");
+  if (isNaN(horasNuevas) || horasNuevas < 0) {
+    alert("Ingresa un número válido de horas (mayor o igual a 0).");
+    return;
+  }
+  if (!_dlgRegistroId) {
+    alert("No se identificó el registro a editar.");
+    return;
+  }
+  try {
+    const res = await fetch(`/api/registros/${_dlgRegistroId}/horas`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ horas: horasNuevas })
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || "Error al editar horas");
+
+    // Actualizar en memoria sin recargar toda la página
+    if (currentRegistrosDetalle) {
+      const target = currentRegistrosDetalle.find(r => Number(r.id) === _dlgRegistroId);
+      if (target) target.horas = horasNuevas;
+    }
+
+    cerrarDlgHoras();
+    recalcularMetricasModal();
+    renderDetallesTab();
+    if (typeof cargarNominaData === "function") cargarNominaData(currentWeekOffset);
+  } catch (err) {
+    alert(`Error al guardar: ${err.message}`);
+  }
+}
+
 
 
 
