@@ -1017,7 +1017,7 @@ async function cambiarSemana(offsetVal) {
 }
 
 
-function seleccionarSeccion(seccionKey) {
+async function seleccionarSeccion(seccionKey) {
   seccionSeleccionada = seccionKey;
   document.getElementById("lobbyView").classList.add("hidden");
   document.getElementById("dashboardWrapper").classList.remove("hidden");
@@ -1025,7 +1025,7 @@ function seleccionarSeccion(seccionKey) {
   // Actualizar título dinámico
   const titulo = seccionKey === "consolidado" 
     ? "SAMCRO MC — Nómina Consolidada" 
-    : `SAMCRO MC — Nómina de ${SECCIONES[seccionKey].label}`;
+    : `SAMCRO MC — Nómina de ${SECCIONES[seccionKey]?.label || seccionKey}`;
   document.getElementById("dashboardTitle").innerHTML = titulo;
   
   if (infoSemanaActual) {
@@ -1040,8 +1040,15 @@ function seleccionarSeccion(seccionKey) {
     chartCard.classList.add("hidden");
   }
 
-  render();
+  // Si aún no tenemos los datos listos en memoria, cargarlos de inmediato
+  if (!dataPorSeccion || Object.keys(dataPorSeccion).length === 0 || !dataPorSeccion[seccionKey]) {
+    render();
+    await cargarNominaData(currentWeekOffset);
+  } else {
+    render();
+  }
 }
+
 
 
 function volverAlMenu() {
