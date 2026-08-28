@@ -2016,8 +2016,8 @@ function renderDetallesTab() {
           <td style="padding:10px 8px; text-align:center; font-size:12px; color:var(--text-secondary); white-space:nowrap;">${fecha}</td>
           <td style="padding:10px 8px; text-align:center;">
             <div style="display:flex; gap:5px; justify-content:center; flex-wrap:wrap;">
-              <button type="button" onclick="event.stopPropagation(); abrirDlgHoras(${r.id}, ${r.horas})" style="background:rgba(230,176,15,0.18); color:#e6b00f; border:1px solid rgba(230,176,15,0.4); font-size:11px; border-radius:6px; padding:5px 10px; font-weight:800; cursor:pointer;" title="Ajustar horas de este turno"><i class="fa-solid fa-pen-to-square"></i> Editar</button>
-              <button type="button" onclick="event.stopPropagation(); anularRegistro(${r.id}, true)" style="background:rgba(245,101,101,0.15); color:#f56565; border:1px solid rgba(245,101,101,0.3); font-size:11px; border-radius:6px; padding:5px 10px; font-weight:700; cursor:pointer;" title="Anular este turno"><i class="fa-solid fa-ban"></i> Anular</button>
+              <button type="button" data-action="editar-horas" data-rid="${r.id}" data-horas="${r.horas}" style="background:rgba(230,176,15,0.18); color:#e6b00f; border:1px solid rgba(230,176,15,0.4); font-size:11px; border-radius:6px; padding:5px 10px; font-weight:800; cursor:pointer;" title="Ajustar horas de este turno"><i class="fa-solid fa-pen-to-square"></i> Editar</button>
+              <button type="button" data-action="anular-turno" data-rid="${r.id}" style="background:rgba(245,101,101,0.15); color:#f56565; border:1px solid rgba(245,101,101,0.3); font-size:11px; border-radius:6px; padding:5px 10px; font-weight:700; cursor:pointer;" title="Anular este turno"><i class="fa-solid fa-ban"></i> Anular</button>
             </div>
           </td>
 
@@ -2086,6 +2086,28 @@ function handleBackdropClick(e) {
     cerrarDetallesModal();
   }
 }
+
+// ---- Event delegation para botones generados dinámicamente en el modal de detalles ----
+document.addEventListener("DOMContentLoaded", function() {
+  const detailsModal = document.getElementById("detailsModal");
+  if (detailsModal) {
+    detailsModal.addEventListener("click", function(e) {
+      const btn = e.target.closest("button[data-action]");
+      if (!btn) return;
+      e.stopPropagation();
+      const action = btn.dataset.action;
+      const rid = Number(btn.dataset.rid);
+      if (action === "editar-horas") {
+        const horas = Number(btn.dataset.horas) || 0;
+        abrirDlgHoras(rid, horas);
+      } else if (action === "anular-turno") {
+        anularRegistro(rid, true);
+      } else if (action === "restaurar-turno") {
+        anularRegistro(rid, false);
+      }
+    });
+  }
+});
 
 // ---- Editar horas de turno (usa <dialog> nativo para evitar conflictos con .hidden) ----
 let _dlgRegistroId = null;
