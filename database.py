@@ -15,6 +15,23 @@ try:
 except ImportError:
     asyncpg = None
 
+# Pool global de conexiones PostgreSQL — se crea UNA SOLA VEZ al iniciar.
+# Evita el overhead de abrir/cerrar una conexión TCP+TLS por cada query,
+# lo que causaba timeouts de 3s en Discord al usar Supabase en la nube.
+_pool = None
+
+async def _get_pool():
+    """Retorna el pool existente o lo crea si aún no existe."""
+    global _pool
+    if _pool is None or _pool._closed:
+        _pool = await asyncpg.create_pool(
+            DATABASE_URL,
+            min_size=1,
+            max_size=5,
+            command_timeout=10,
+        )
+    return _pool
+
 DB_PATH = os.getenv("DB_PATH", "samcro.db")
 _db_dir = os.path.dirname(os.path.abspath(DB_PATH))
 if _db_dir and not DATABASE_URL:
@@ -189,11 +206,9 @@ def _format_sql(query: str) -> str:
 
 async def _execute(query: str, params: tuple = ()):
     if DATABASE_URL:
-        conn = await asyncpg.connect(DATABASE_URL)
-        try:
+        pool = await _get_pool()
+        async with pool.acquire() as conn:
             return await conn.execute(_format_sql(query), *params)
-        finally:
-            await conn.close()
     else:
         async with aiosqlite.connect(DB_PATH) as db:
             cursor = await db.execute(query, params)
@@ -203,12 +218,10 @@ async def _execute(query: str, params: tuple = ()):
 
 async def _fetch_all(query: str, params: tuple = ()):
     if DATABASE_URL:
-        conn = await asyncpg.connect(DATABASE_URL)
-        try:
+        pool = await _get_pool()
+        async with pool.acquire() as conn:
             rows = await conn.fetch(_format_sql(query), *params)
             return [dict(r) for r in rows]
-        finally:
-            await conn.close()
     else:
         async with aiosqlite.connect(DB_PATH) as db:
             db.row_factory = aiosqlite.Row
@@ -219,12 +232,10 @@ async def _fetch_all(query: str, params: tuple = ()):
 
 async def _fetch_one(query: str, params: tuple = ()):
     if DATABASE_URL:
-        conn = await asyncpg.connect(DATABASE_URL)
-        try:
+        pool = await _get_pool()
+        async with pool.acquire() as conn:
             row = await conn.fetchrow(_format_sql(query), *params)
             return dict(row) if row else None
-        finally:
-            await conn.close()
     else:
         async with aiosqlite.connect(DB_PATH) as db:
             db.row_factory = aiosqlite.Row
@@ -234,14 +245,20 @@ async def _fetch_one(query: str, params: tuple = ()):
 
 
 async def iniciar_db():
+    global _pool
     if DATABASE_URL:
-        conn = await asyncpg.connect(DATABASE_URL)
-        try:
+        # Crear el pool PRIMERO para que todas las funciones lo usen desde el inicio
+        if _pool is None or _pool._closed:
+            _pool = await asyncpg.create_pool(
+                DATABASE_URL,
+                min_size=1,
+                max_size=5,
+                command_timeout=10,
+            )
+        async with _pool.acquire() as conn:
             for stmt in PG_SCHEMA.strip().split(";"):
                 if stmt.strip():
                     await conn.execute(stmt)
-        finally:
-            await conn.close()
     else:
         async with aiosqlite.connect(DB_PATH) as db:
             await db.executescript(SQLITE_SCHEMA)
@@ -261,12 +278,10 @@ async def registrar_horas(discord_id: str, nombre: str, seccion: str, horas: flo
                VALUES (?, ?, ?, 'horas', ?, ?, ?, ?)"""
     params = (discord_id, nombre, seccion, horas, nota, datetime.utcnow().isoformat(), validado)
     if DATABASE_URL:
-        conn = await asyncpg.connect(DATABASE_URL)
-        try:
+        pool = await _get_pool()
+        async with pool.acquire() as conn:
             row = await conn.fetchrow(_format_sql(query) + " RETURNING id", *params)
             return row["id"]
-        finally:
-            await conn.close()
     else:
         return await _execute(query, params)
 
@@ -281,12 +296,10 @@ async def registrar_servicio(discord_id: str, nombre: str, seccion: str, servici
     params = (discord_id, nombre, seccion, servicio_nombre, monto, comision, nota, foto_url,
               datetime.utcnow().isoformat(), validado)
     if DATABASE_URL:
-        conn = await asyncpg.connect(DATABASE_URL)
-        try:
+        pool = await _get_pool()
+        async with pool.acquire() as conn:
             row = await conn.fetchrow(_format_sql(query) + " RETURNING id", *params)
             return row["id"]
-        finally:
-            await conn.close()
     else:
         return await _execute(query, params)
 
