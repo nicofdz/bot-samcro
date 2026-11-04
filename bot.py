@@ -523,6 +523,7 @@ async def iniciar_servidor_web():
     os.makedirs("uploads", exist_ok=True)
 
     app.router.add_static("/uploads", "uploads")
+    os.makedirs("LOGO", exist_ok=True)
     app.router.add_static("/logo", "LOGO")
     
     port = int(os.getenv("PORT", 8080))
