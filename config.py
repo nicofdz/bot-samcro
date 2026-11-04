@@ -60,6 +60,13 @@ SECCIONES = {
         "comision_servicio": 0.35,
         "usa_sueldo_base": False,
     },
+    "coleccionables": {
+        "nombre_visible": "💎 Coleccionables",
+        "rol_jefe": ["Encargado de Coleccionables", "Jefe Coleccionables", "Liderazgo SAMCRO", "Dueños", "Sub dueño"],
+        "tarifa_hora": 0,
+        "comision_servicio": 0.10,
+        "usa_sueldo_base": False,
+    },
 }
 
 SUELDO_BASE_TRABAJADOR = 10000
@@ -72,6 +79,7 @@ PORCENTAJES_JEFE = {
     "tatuajes": 0.40,
     "bar": 0.50,
     "show": 0.40,
+    "coleccionables": 0.10,
 }
 
 # Porcentaje de comisión por servicio según el rol del trabajador en Discord

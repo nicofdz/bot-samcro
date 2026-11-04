@@ -540,7 +540,7 @@ async def custom_setup_hook():
     admin_pass = os.getenv("DASHBOARD_PASS") or os.getenv("ADMIN_PASSWORD", "samcro2026")
     existing = await db.obtener_usuario(admin_user)
     if not existing:
-        await db.crear_usuario(admin_user, admin_pass, "superadmin", json.dumps(["consolidado", "mecanica", "bar", "tatuajes", "show"]), debe_cambiar_password=0)
+        await db.crear_usuario(admin_user, admin_pass, "superadmin", json.dumps(["consolidado", "mecanica", "bar", "tatuajes", "show", "coleccionables"]), debe_cambiar_password=0)
     bot.loop.create_task(iniciar_servidor_web())
     bot.add_view(PanelControlView())
     bot.add_view(FinalizarTurnoView())
@@ -1871,7 +1871,7 @@ async def main():
     admin_pass = os.getenv("DASHBOARD_PASS") or os.getenv("ADMIN_PASSWORD", "samcro2026")
     existing = await db.obtener_usuario(admin_user)
     if not existing:
-        await db.crear_usuario(admin_user, admin_pass, "superadmin", json.dumps(["consolidado", "mecanica", "bar", "tatuajes", "show"]), debe_cambiar_password=0)
+        await db.crear_usuario(admin_user, admin_pass, "superadmin", json.dumps(["consolidado", "mecanica", "bar", "tatuajes", "show", "coleccionables"]), debe_cambiar_password=0)
     await iniciar_servidor_web()
 
     # Bucle de conexión con Discord con reintento automático y backoff exponencial ante 429
