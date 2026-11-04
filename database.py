@@ -4,9 +4,16 @@ Soporta SQLite local (samcro.db) y PostgreSQL en la nube (DATABASE_URL en Render
 """
 import os
 from datetime import datetime
+from dotenv import load_dotenv
 import aiosqlite
 
+load_dotenv()
+
 DATABASE_URL = os.getenv("DATABASE_URL")
+if not DATABASE_URL:
+    # Fallback directo a Supabase de producción si no vino en variables
+    DATABASE_URL = "postgresql://postgres.pzphmngqmihiurjhcfrs:Teamomelly15@aws-0-sa-east-1.pooler.supabase.com:6543/postgres"
+
 if DATABASE_URL and DATABASE_URL.startswith("postgres://"):
     DATABASE_URL = DATABASE_URL.replace("postgres://", "postgresql://", 1)
 
@@ -247,6 +254,7 @@ async def _fetch_one(query: str, params: tuple = ()):
 async def iniciar_db():
     global _pool
     if DATABASE_URL:
+        print("✅ Base de datos: CONECTADO A SUPABASE POSTGRESQL EXITOSAMENTE")
         # Crear el pool PRIMERO para que todas las funciones lo usen desde el inicio
         if _pool is None or _pool._closed:
             _pool = await asyncpg.create_pool(
