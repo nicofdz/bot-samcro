@@ -1257,6 +1257,23 @@ async def on_ready():
         if not revisar_cierre_semanal.is_running():
             revisar_cierre_semanal.start()
 
+        # Sincronizar avatares oficiales de Discord para trabajadores
+        guild = bot.get_guild(int(GUILD_ID))
+        if guild:
+            try:
+                canales = await db.todos_los_canales_trabajador()
+                for c in canales:
+                    did = c.get("discord_id")
+                    if did and str(did).isdigit():
+                        try:
+                            member = guild.get_member(int(did)) or await guild.fetch_member(int(did))
+                            if member and member.display_avatar:
+                                await db.actualizar_avatar_trabajador(str(did), str(member.display_avatar.url))
+                        except Exception:
+                            pass
+            except Exception as e_av:
+                print(f"Aviso al sincronizar avatares en Discord: {e_av}")
+
     print(f"SAMCRO bot conectado exitosamente como {bot.user}")
 
 
@@ -1368,7 +1385,8 @@ async def crear_canal_trabajador(interaction: discord.Interaction, trabajador: d
         nombre_canal, category=categoria, overwrites=overwrites,
         topic=f"Bitácora personal de {trabajador.display_name} — /registrar-horas y /registrar-servicio aquí.")
 
-    await db.vincular_canal(str(canal.id), str(trabajador.id), trabajador.display_name)
+    avatar_url = str(trabajador.display_avatar.url) if trabajador.display_avatar else None
+    await db.vincular_canal(str(canal.id), str(trabajador.id), trabajador.display_name, avatar_url)
 
     bienvenida = discord.Embed(
         title=f"👋 Bienvenido/a, {trabajador.display_name}",

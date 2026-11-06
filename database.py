@@ -78,7 +78,8 @@ CREATE TABLE IF NOT EXISTS canales_trabajador (
     canal_id TEXT PRIMARY KEY,
     discord_id TEXT NOT NULL,
     nombre TEXT NOT NULL,
-    creado_en TEXT NOT NULL
+    creado_en TEXT NOT NULL,
+    avatar_url TEXT
 );
 
 CREATE TABLE IF NOT EXISTS estado (
@@ -155,7 +156,8 @@ CREATE TABLE IF NOT EXISTS canales_trabajador (
     canal_id TEXT PRIMARY KEY,
     discord_id TEXT NOT NULL,
     nombre TEXT NOT NULL,
-    creado_en TEXT NOT NULL
+    creado_en TEXT NOT NULL,
+    avatar_url TEXT
 );
 
 CREATE TABLE IF NOT EXISTS estado (
@@ -406,12 +408,29 @@ async def guardar_pago(seccion: str, semana_inicio: str, semana_fin: str, pagado
 
 # ---------- Canales personales de trabajador ----------
 
-async def vincular_canal(canal_id: str, discord_id: str, nombre: str):
+async def vincular_canal(canal_id: str, discord_id: str, nombre: str, avatar_url: str = None):
     await _execute("DELETE FROM canales_trabajador WHERE discord_id = ?", (discord_id,))
     await _execute(
-        """INSERT INTO canales_trabajador (canal_id, discord_id, nombre, creado_en)
-           VALUES (?, ?, ?, ?)""",
-        (canal_id, discord_id, nombre, datetime.utcnow().isoformat()),
+        """INSERT INTO canales_trabajador (canal_id, discord_id, nombre, creado_en, avatar_url)
+           VALUES (?, ?, ?, ?, ?)""",
+        (canal_id, discord_id, nombre, datetime.utcnow().isoformat(), avatar_url),
+    )
+    if avatar_url:
+        await _execute(
+            """UPDATE usuarios 
+               SET avatar_url = ? 
+               WHERE discord_id = ? AND (avatar_url IS NULL OR avatar_url LIKE '%discord%')""",
+            (avatar_url, discord_id),
+        )
+
+
+async def actualizar_avatar_trabajador(discord_id: str, avatar_url: str):
+    await _execute("UPDATE canales_trabajador SET avatar_url = ? WHERE discord_id = ?", (avatar_url, discord_id))
+    await _execute(
+        """UPDATE usuarios 
+           SET avatar_url = ? 
+           WHERE discord_id = ? AND (avatar_url IS NULL OR avatar_url LIKE '%discord%')""",
+        (avatar_url, discord_id),
     )
 
 
